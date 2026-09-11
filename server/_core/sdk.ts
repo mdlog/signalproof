@@ -30,11 +30,12 @@ const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserI
 
 class OAuthService {
   constructor(private client: ReturnType<typeof axios.create>) {
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
-      );
+    // OAuth login is scaffold functionality SignalProof does not use: every signalproof.* procedure
+    // is public and the wallet is the only identity. Leaving it unconfigured is the expected state.
+    if (ENV.oAuthServerUrl) {
+      console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
+    } else {
+      console.info("[OAuth] OAUTH_SERVER_URL not set — login disabled; not needed for SignalProof.");
     }
   }
 
@@ -82,6 +83,7 @@ const createOAuthHttpClient = (): AxiosInstance =>
   });
 
 class SDKServer {
+  private static warnedNoSecret = false;
   private readonly client: AxiosInstance;
   private readonly oauthService: OAuthService;
 
@@ -199,8 +201,16 @@ class SDKServer {
   async verifySession(
     cookieValue: string | undefined | null
   ): Promise<{ openId: string; appId: string; name: string } | null> {
-    if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
+    // No cookie is the normal state of a public dashboard, not a fault worth a log line.
+    if (!cookieValue) return null;
+
+    // With no JWT_SECRET there is nothing to verify against; jose would throw "Zero-length key"
+    // on every request that carries a stale cookie. Say so once, then treat callers as anonymous.
+    if (!ENV.cookieSecret) {
+      if (!SDKServer.warnedNoSecret) {
+        SDKServer.warnedNoSecret = true;
+        console.info("[Auth] JWT_SECRET is not set — sessions are disabled; the dashboard is public anyway.");
+      }
       return null;
     }
 
