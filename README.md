@@ -73,11 +73,15 @@ accepts. Only the binding stops them.
 
 | | Address | Explorer |
 |---|---|---|
-| `SourceBatchRegistry` — Ethereum Sepolia (11155111) | `0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc` | [Etherscan](https://sepolia.etherscan.io/address/0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc) |
+| `SourceBatchRegistry` — Ethereum Sepolia (11155111) | `0x32c0923cD58523864D2727FCaaB109783664c236` | [Etherscan](https://sepolia.etherscan.io/address/0x32c0923cD58523864D2727FCaaB109783664c236) |
 | `SignalProofSettlement` — Creditcoin CC3 Testnet (102031) | `0x8F14B2cC1b807203d332DE6E3DA6274176FDb584` | [Blockscout](https://creditcoin-testnet.blockscout.com/address/0x8F14B2cC1b807203d332DE6E3DA6274176FDb584) |
 | `SignalProofBatchSettlement` — Creditcoin CC3 Testnet | `0x3B90e22f246bBa68f6de682b564c33b121D68C85` | [Blockscout](https://creditcoin-testnet.blockscout.com/address/0x3B90e22f246bBa68f6de682b564c33b121D68C85) |
+| Retired `SourceBatchRegistry` (relayer-gated, no on-chain signature) — Sepolia | `0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc` | [Etherscan](https://sepolia.etherscan.io/address/0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc) |
 
-All three are verified on their explorers. The registry was redeployed once — see below.
+All are verified on their explorers. The registry was redeployed twice, each time to close a hole
+found in review — see below. The settlement contracts kept their addresses and were repointed with
+`setSourceRegistry`; the retired registry's seven settled measurements are still read
+(`RETIRED_REGISTRIES`), because they were genuine and authorised.
 
 ### The registry was permissionless, and that was the whole system's weak point
 
@@ -131,6 +135,43 @@ That is a grief lever: one Sepolia transaction that touches the registry *and* e
 would kill every batch containing it, forever, taking the innocent measurements beside it down too.
 Foreign logs are now skipped and reported through a `ForeignLogSkipped` event. A batch made only of
 foreign logs still reverts, via `NoMeasurementSettled`, so nothing unearned can settle either way.
+
+### The relayer could still name the payee, so the registry now checks the signature itself
+
+Gating the registry on the relayer closed the door to outsiders. It left one party fully trusted:
+the relayer. The gateway verified the contributor's EIP-191 signature before relaying, but nothing
+on either chain checked it — a relayer that lied about `contributor` would have produced a
+perfectly provable event and paid whoever it named.
+
+`SourceBatchRegistry.submitMeasurement` now takes the contributor's signature and recovers the
+signer on-chain, from the exact text the wallet displayed (`buildMeasurementSigningMessage`,
+rebuilt byte for byte in Solidity and pinned by a vector produced with ethers):
+
+```solidity
+address recovered = recoverContributor(measurementRoot, contributor, signature);
+if (recovered != contributor) revert SignatureMismatch(recovered, contributor);
+```
+
+Both controls stay. The relayer gate is what carries the gateway's admission checks — freshness,
+geohash precision, uniqueness, the rate limit — on-chain; the signature is what makes attribution
+a claim *by the contributor*. Neither alone suffices: without the gate anyone could spam self-signed
+junk past the gateway; without the signature the relayer could forge attribution.
+`contracts/test/SourceBatchRegistry.t.sol` holds the vector test and the fuzzed recovery;
+`test_theRelayerGateIsStillCheckedFirst` proves an outsider with a valid signature is still refused.
+Cost: 86,266 gas per Sepolia commitment against ~50,000 before, for the string rebuild and
+`ecrecover`.
+
+The first live run through the signed registry, end to end:
+
+| Step | Result |
+|---|---|
+| Signed measurement committed to Sepolia | [`0xbd7261…7223`](https://sepolia.etherscan.io/tx/0xbd7261e655c751f9a38acc116808acd3a0c0b0fd14279fe4fad207c742d57223) — block 11,681,452 |
+| Attestation reached that block | 9.6 min |
+| Inclusion proof | 7 Merkle siblings, 9 continuity roots, 2,112-byte `txBytes` |
+| Settled on Creditcoin | [`0x60d9e4…a2b5`](https://creditcoin-testnet.blockscout.com/tx/0x60d9e438e8549a101b144bd1e474475301c696640062601ddfd18f788e6aa2b5) — block 5,468,910, 154,224 gas |
+| Reward | 0.001 CTC accrued; contributor balance 0.005 → 0.006 CTC |
+
+**Total: 9.8 minutes.**
 
 ### A real cross-chain settlement
 
@@ -189,13 +230,15 @@ for a 75,000,000-gas CC3 block; 800 does not fit.
 
 | Component | State |
 |---|---|
-| Smart contracts | **Deployed and verified** on both chains. 67 Foundry tests passing, including a 6-test end-to-end suite and the inverted exploits described above. |
+| Smart contracts | **Deployed and verified** on both chains. 75 Foundry tests passing, including a 6-test end-to-end suite, the inverted exploits described above, and the signature vector shared with the TypeScript client. |
 | Cross-chain settlement | **Proven on-chain**, transaction hashes above. |
 | Gateway → chain, no database | **Proven.** A measurement POSTed to the gateway with no MySQL running relayed itself to Sepolia on the next worker tick and settled on Creditcoin unattended: source [`0x17e8c0…90683`](https://sepolia.etherscan.io/tx/0x17e8c0c317c034c73c5f7a5c7decd92df4c9c91371430af8d1ca7da325c90683) → settlement [`0x87bc9d…d5ae4`](https://creditcoin-testnet.blockscout.com/tx/0x87bc9d13181e76c9dc250a64423f3d26ff2a4e4d425d9673b7cfd5aabf3d5ae4), area `qqguyg`. |
 | Relayer + proof worker | **Complete.** Non-blocking 15 s tick, backoff, terminal-vs-transient error classification. |
 | Gateway (tRPC + MySQL) | **Complete.** Validation, freshness, duplicate protection, SQL-side proof queue, coverage aggregates. |
 | Attestcoin read path | **Verified live.** `pnpm smoke` passes from a clean machine. |
-| Dashboard | **Live.** Reads the deployed contracts directly — no database required. Falls back to labelled fixtures when the chain is unconfigured. |
+| Dashboard | **Live.** Reads the deployed contracts directly — no database required. Every proof-queue row can open the live Attestcoin proof ("View proof"); pending rows can be settled from the contributor's own wallet. |
+| Buyer API | **Live, read-only.** `GET /v1/areas`, `/v1/areas/{geohash}`, `/v1/areas/{geohash}/brief` — aggregates and every sample with its Sepolia commitment and Creditcoin settlement. No authentication or retention policy yet. |
+| Anti-spam | **Policy only.** 3 measurements per contributor per cell per 10 minutes at the gateway, in-process. Not a Sybil defence. |
 | Device measurement | **Real.** Latency, throughput, coarse area and network class measured in the browser; wallet-gated. A native app is not started — the browser client is the measurement client. |
 
 We would rather state this plainly than have a judge discover it. Nothing in the UI or the docs
@@ -222,6 +265,38 @@ Consequences worth knowing:
   source-chain commitment while pending.
 - Scanning starts at each contract's recorded deployment block. A fixed 40,000-block lookback made
   the first paint take 23 s on a public Sepolia endpoint; this brought it to 0.6 s.
+
+### The proof is on screen, not just in the logs
+
+Every row in the proof queue has **View proof**. It asks the Attestcoin proof service for that
+transaction's inclusion proof — with no key, exactly as `pnpm smoke` does — and shows what the
+BlockProver precompile is given: the attested Sepolia height and transaction index, the size of the
+RLP-encoded transaction and receipt, the Merkle root and each sibling with its side, the continuity
+roots that chain the block back to an attestation checkpoint, and the exact `execute()` call
+(selector `0xc6339bf7`, calldata size, gas ceiling). For a block Creditcoin has not attested yet
+it says so, with the countdown.
+
+A row still awaiting attestation also has **Settle from my wallet** once a wallet is connected.
+The server builds `execute()`'s calldata from that same proof; the wallet signs and pays CC3 gas.
+This is `execute()`'s permissionlessness made visible: the contributor does not need the relayer to
+get paid. If the relayer settles first, the contract refuses the second attempt
+(`Query already processed`) and the UI says so rather than pretending. For a demo where the
+contributor must be the one to settle, run the server with `PROOF_WORKER_MODE=relay-only`: the
+worker still relays to Sepolia but leaves settlement to wallets.
+
+### A buyer can query an area, with provenance
+
+```bash
+curl -s https://<host>/v1/areas                    # every measured cell, most samples first
+curl -s https://<host>/v1/areas/qqguw6             # one cell: aggregates + every sample
+curl -s https://<host>/v1/areas/qqguw6/brief       # the same as a markdown brief
+```
+
+Each sample carries `sourceTxHash` and `creditcoinTxHash` with explorer links, so a buyer can
+verify any number in the aggregate down to the transaction that proved it. The dashboard's
+"Create area brief" button renders `/brief` for the most-sampled cell. The quality score the API
+reports is the one the dashboard shows (`shared/quality.ts`): 50 % latency penalty up to 200 ms,
+50 % throughput credit up to 100 Mbps. There is no authentication and no retention policy yet.
 
 ### `areaHash` is a geohash, and that is what makes the map real
 
@@ -366,6 +441,16 @@ resolved chain key and the current attestation lag:
 ✓ height 11655115 bracketed by parent=11655110 child=11655120 (attested=true)
 ```
 
+### In a container
+
+```bash
+docker build -t signalproof .
+docker run --rm -p 3000:3000 --env-file .env signalproof
+```
+
+`fly.toml` and `render.yaml` are included; both hosts inject `PORT`. The image ships only
+production dependencies — the Vite dev server is loaded lazily and never in production.
+
 ### Without chain configuration
 
 The chain variables are optional. With none of them set, the gateway still accepts and stores
@@ -424,13 +509,23 @@ reward is accrued on Creditcoin, nothing walks it back.
   secrets; exposing them would let a caller replay another contributor's payload.
 - **Prove fresh transactions.** Proving a 24-hour-old transaction costs roughly 10× more gas, once
   the dense attestation is replaced by sparse checkpoints.
+- **Sepolia transactions are sent one JSON-RPC call at a time.** ethers v6 batches the three
+  calls behind `broadcastTransaction` into one HTTP request; Tenderly's public gateway answers a
+  batch that carries `eth_sendRawTransaction` with a single HTTP 429 object instead of an array,
+  ethers cannot match it to a request id, and the send never settles — no error, just a relayer
+  that sits on `SUBMITTED` rows forever. `batchMaxCount: 1` on every Sepolia sender sidesteps it
+  (`SEPOLIA_SENDER_PROVIDER_OPTIONS`). The dashboard's log reads survived a second public endpoint
+  that answered half of identical `eth_getLogs` calls with an empty array; those are re-asked and a
+  re-read may never shrink what is already shown.
 
 ## Known limitations
 
-- Contributor signatures are verified at the gateway — the EIP-191 signer is recovered from the
-  canonical signing message and must equal `contributorAddress` (`verifyMeasurementIntegrity`,
-  `SIGNATURE_MISMATCH`). They are not carried on-chain, so the destination chain still trusts the
-  relayer's admission decision rather than checking the signature itself.
+- The relayer is still the admission point: only it may submit to the registry, so a relayer that
+  goes offline stalls new measurements (already-committed ones can be settled by anyone). The
+  contributor's signature is verified on-chain, so it can no longer forge attribution.
+- Anti-Sybil is a rate limit (3 per contributor per cell per 10 minutes, in-process), not a
+  defence: device attestation and stake-weighted rewards are not built.
+- The buyer API has no authentication and no retention policy.
 - Read direction only (Sepolia → Creditcoin). Write-ability has no public reference implementation
   and has not cleared third-party audit.
 - End-to-end latency is 9–13 minutes, dominated by the ~7 minute attestation wait. A live

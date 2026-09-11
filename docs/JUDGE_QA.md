@@ -58,12 +58,15 @@ true, and is the honest limitation: the signature is not carried on-chain, so th
 contract cannot re-check it — admission still trusts the relayer key (Q5).
 
 **5. What happens if the relayer is malicious?**
-It can withhold or delay measurements, and — because it is the registry's admission gate — it could
-submit a self-named measurement and accrue rewards from the pool that the same operator funded; it
-cannot forge a proof, cannot make the contract accept an event from another emitter, cannot touch
-anyone else's accrued balance, and can be rotated with `setRelayer`. Removing that trust means
-carrying the contributor's signature in the event and recovering it in the hook (`ecrecover`,
-about 3k gas per settlement) — it is the first thing we would ship after the event.
+It can withhold or delay measurements — that is the residual trust, and it is stated. It can no
+longer forge attribution: `SourceBatchRegistry.submitMeasurement` recovers the contributor's
+EIP-191 signature on-chain and reverts `SignatureMismatch` if the named payee did not sign the
+measurement, so a relayer that names itself or anyone else gets nothing recorded. It cannot forge
+a proof, cannot make the settlement contract accept an event from another emitter, cannot touch
+anyone else's accrued balance, and can be rotated with `setRelayer`. And a measurement it already
+committed does not need it to get paid: `execute()` is permissionless, and the dashboard's "Settle
+from my wallet" button sends the same calldata the worker would from the contributor's own wallet
+(`PROOF_WORKER_MODE=relay-only` demonstrates it with the worker's settlement switched off).
 
 **6. Attested is not finalized. What about a Sepolia reorg?**
 Attestation runs 65–85 blocks ahead of Sepolia's `finalized` tag, so a deep reorg could in
@@ -80,12 +83,13 @@ every ~2 minutes), not our code, and a live real-time demo is therefore impossib
 the video pre-warms a measurement and says so.
 
 **8. There is no anti-Sybil. One phone can run a hundred tests.**
-Correct, and today that earns 100 × 0.001 CTC from a pool we fund, so the exposure is bounded by
-the pool; the gateway already enforces nonce and root uniqueness, freshness, and a per-session hash,
-and the contract a 24-hour window. Real anti-Sybil for this data is a scoring problem — rate limits
-per address and per cell, cross-contributor agreement inside a cell, platform attestation once
-there is a native client — and the on-chain record already carries the fields that scoring needs
-(`areaHash`, `contributor`, `timestamp`).
+Not a hundred in one place: the gateway admits at most 3 measurements per contributor per geohash
+cell per 10 minutes (`MEASUREMENT_RATE_LIMIT`, in-process, stated in the README as a policy and
+not a defence), on top of nonce and root uniqueness, freshness, a per-session hash, and the
+contract's 24-hour window. The exposure is bounded by a pool we fund. Real anti-Sybil for this data
+is a scoring problem — cross-contributor agreement inside a cell, stake-weighted rewards, platform
+attestation once there is a native client — and the on-chain record already carries the fields
+that scoring needs (`areaHash`, `contributor`, `timestamp`).
 
 **9. A browser client is not DePIN hardware.**
 The phone is the sensor and the browser is the driver: latency is the median of seven timed round
@@ -99,8 +103,11 @@ rail does not change.
 Mobile operators and their vendors already pay for drive testing and crowdsourced quality-of-
 experience data; venues (stadiums, malls, campuses) and public programmes pay for coverage audits.
 The product is an "area brief" whose every number links to a settled proof, sold per area or per
-period, with contributors paid from that revenue rather than from an emissions pool — the buyer
-API and retention policy are not built, and the "Data products" screen says exactly that.
+period, with contributors paid from that revenue rather than from an emissions pool. The read-only
+buyer API v1 is live — `GET /v1/areas/{geohash}` returns the aggregates and every sample with its
+Sepolia commitment and Creditcoin settlement, `/brief` renders the forwardable brief, and the
+"Create area brief" button on the Data products screen uses it. Authentication and a retention
+policy are not built, and the screen says exactly that.
 
 ## The next tier (asked by the specialist judge)
 
@@ -158,11 +165,11 @@ precompile directly, and the single-proof contract was already live and immutabl
 cross-checking them was cheaper and safer than introducing a proxy for a hackathon deployment, and
 the sibling list (max 4) means a retired route is still deferred to.
 
-**18. My clone says "Chain not configured" in the sidebar but "CC3 TESTNET · LIVE" in the header. Which is it?**
-Both are true: the header reflects the read path (contract logs, no key needed), and the "Protocol
-rail" card reflects whether the relayer and proof worker can run, which needs the two relayer
-private keys that `.env.example` deliberately leaves blank. The wording is one string and is on the
-fix list ("Read-only — relayer key not set").
+**18. My keyless clone says "Read-only — no relayer key" in the sidebar but "CC3 TESTNET · LIVE" in the header. Which is it?**
+Both: the header reflects the read path (contract logs, no key needed) and the "Protocol rail" card
+reflects whether the relayer and proof worker can run, which needs the two relayer private keys
+that `.env.example` deliberately leaves blank. Reads, the proof inspector and the buyer API all
+work without a key; submitting needs the relayer, and the card says so.
 
 **19. `estimateGas` fails against precompiles. How do you know your gas limit is right?**
 It runs in try/catch; on failure the worker uses a formula (base + per-continuity-root +

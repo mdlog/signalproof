@@ -9,7 +9,8 @@ Ethereum Sepolia → Creditcoin CC3 Testnet.
 
 | Contract | Chain | Address |
 |---|---|---|
-| `SourceBatchRegistry` | Ethereum Sepolia (11155111) | `0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc` |
+| `SourceBatchRegistry` (signature verified on-chain) | Ethereum Sepolia (11155111) | `0x32c0923cD58523864D2727FCaaB109783664c236` |
+| Retired `SourceBatchRegistry` (relayer-gated only; history still read) | Ethereum Sepolia | `0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc` |
 | `SignalProofSettlement` | Creditcoin CC3 Testnet (102031) | `0x8F14B2cC1b807203d332DE6E3DA6274176FDb584` |
 | `SignalProofBatchSettlement` | Creditcoin CC3 Testnet (102031) | `0x3B90e22f246bBa68f6de682b564c33b121D68C85` |
 
@@ -26,9 +27,10 @@ emitted it succeeded, and the emitter was our registry.
 The trust boundary is therefore the Sepolia event. Everything before it (gateway validation,
 signature recovery, freshness, geohash precision) decides what gets *admitted*; everything after
 it (attestation, inclusion proof, emitter binding, replay protection, reward) decides what gets
-*paid*. Admission is gated — the registry accepts submissions from one relayer address, the one that
-carries the gateway's checks on-chain. Payment is permissionless — anyone holding a valid proof may
-settle it, and the contract's own checks are the only authorisation.
+*paid*. Admission is gated twice: the registry accepts submissions from one relayer address, the one
+that carries the gateway's checks on-chain, and it recovers the contributor's own EIP-191 signature
+before recording anything, so the relayer cannot forge attribution. Payment is permissionless —
+anyone holding a valid proof may settle it, and the contract's own checks are the only authorisation.
 
 ## 2. Logical architecture
 
@@ -134,15 +136,30 @@ event MeasurementSubmitted(
 );
 
 function submitMeasurement(bytes32 measurementRoot, bytes32 areaHash, address contributor,
-    bytes32 sessionHash, uint256 timestamp, uint256 latencyMs, uint256 downloadMbps) external;
+    bytes32 sessionHash, uint256 timestamp, uint256 latencyMs, uint256 downloadMbps,
+    bytes calldata signature) external;
+
+function signingMessage(bytes32 measurementRoot, address contributor) public pure returns (string memory);
+function signingDigest(bytes32 measurementRoot, address contributor) public pure returns (bytes32);
+function recoverContributor(bytes32 measurementRoot, address contributor, bytes calldata signature)
+    public pure returns (address);
 ```
 
 `submitMeasurement` reverts unless `msg.sender == relayer`, rejects an empty root, a zero
-contributor, and a root already in `registered`. The contract stores no coordinates, no raw
-payload, and no identity beyond the reward address. It was redeployed once, because the first
-version was permissionless: an attacker could name themselves as `contributor`, obtain a genuine
-proof and be paid for work nobody did (`contracts/test/AdvUnlimitedMint.t.sol` keeps the exploit
-with its assertions inverted).
+contributor, a root already in `registered`, and — before writing anything — a signature whose
+recovered signer is not `contributor` (`SignatureMismatch`). The signed text is rebuilt on-chain
+byte for byte from `shared/measurement.ts` `buildMeasurementSigningMessage` (the EIP-191
+personal_sign message the wallet displayed); a signature vector produced with ethers in
+`server/signalproof/signing.test.ts` is accepted by `contracts/test/SourceBatchRegistry.t.sol`,
+which is the proof the two implementations agree. The contract stores no coordinates, no raw
+payload, and no identity beyond the reward address.
+
+It was redeployed twice. The first version was permissionless: an attacker could name themselves
+as `contributor`, obtain a genuine proof and be paid for work nobody did
+(`contracts/test/AdvUnlimitedMint.t.sol` keeps the exploit with its assertions inverted). The
+second was relayer-gated but trusted the relayer for attribution; the third recovers the
+signature itself. The settlement contracts were repointed each time and the retired gated
+registry's history is still read (`RETIRED_REGISTRIES`).
 
 ### 3.5 Off-chain worker — how the SDK is actually driven
 
@@ -153,11 +170,13 @@ with its assertions inverted).
 | Build the proof | `ProofBuilder.getProof(txHash)` with a 120 s timeout, then unwrap `.data` | The SDK default is 10 s with no retry; the return type is `ProofResult`, not the proof itself |
 | Submit | `settlement.execute(...)` or `batch.executeBatch(...)` with `estimateGas` in try/catch and a 35 % buffer, manual fallback | Estimation fails against precompiles even when the call succeeds |
 | Read the result | From the transaction receipt, never from a log filter | Filter-based polling breaks on RPC nodes that expire filters |
+| Send to Sepolia | One JSON-RPC request per call (`batchMaxCount: 1`) | Tenderly's gateway answers a batch containing `eth_sendRawTransaction` with a lone HTTP 429 object; ethers cannot match it and the send hangs silently |
 | Deploy to CC3 | `forge create`, not `forge script` | CC3 headers carry no `mixHash`, so Foundry's shanghai simulation aborts before sending |
 
 Attestation lag measured during the hackathon: 35–44 blocks behind Sepolia head, advancing 10
 blocks at a time, 7–9 minutes. End-to-end from browser to claimable reward: 8.5 minutes on the
-recorded run.
+recorded run; 9.8 minutes on the first run through the signed registry (9.6 min attestation,
+7 Merkle siblings, 9 continuity roots, 154,224 gas).
 
 ## 4. Components
 
@@ -182,8 +201,19 @@ at precision 6, 13-digit `timestampMs`, bounded metrics), recomputes `measuremen
 canonical payload and rejects a mismatch, recovers the EIP-191 signer of the canonical signing
 message and rejects one that is not `contributorAddress` (`SIGNATURE_MISMATCH`), enforces freshness
 (60 s clock skew ahead, 15 min behind; the contract applies its own 24 h window at settlement),
-and enforces `nonce` and `measurementRoot` uniqueness. Public reads never return `signature`,
-`nonce` or `sessionHash`.
+applies the rate limit (3 measurements per contributor per geohash cell per 10 minutes,
+in-process — `admitMeasurement` runs policy, then integrity, then the limiter so a forged
+submission never consumes an honest slot), and enforces `nonce` and `measurementRoot` uniqueness.
+Public reads never return `signature`, `nonce` or `sessionHash`. `proofFor(sourceTxHash)` returns
+the live Attestcoin proof for any measurement through a keyless read context (`getReadContext`),
+summarised for the dashboard and with `execute()`'s calldata for a wallet.
+
+### Buyer API v1 (`server/signalproof/areas.ts`, `buyerApi.ts`)
+
+`GET /v1/areas`, `GET /v1/areas/{area}` and `GET /v1/areas/{area}/brief` are read-only views of
+the on-chain snapshot: per-cell aggregates (with the decoded geohash cell), and every sample with
+its Sepolia commitment and Creditcoin settlement as explorer links. The brief is markdown a buyer
+can forward. No authentication and no retention policy yet.
 
 ### Store (`server/signalproof/store.ts`, `drizzle/schema.ts`)
 
@@ -213,6 +243,12 @@ Sepolia only, `AWAITING_ATTESTATION`. The coverage map decodes each geohash to i
 and draws the cell, never a point. Labels that are not geohashes are listed as unmapped rather than
 placed.
 
+The proof queue exposes two things on top of the snapshot: **View proof**, the live proof summary
+from `proofFor`, and **Settle from my wallet**, which sends the same `execute()` calldata the worker
+would from the contributor's own wallet — `execute()` is permissionless, and this is that property
+made visible. `PROOF_WORKER_MODE=relay-only` keeps the worker relaying but leaves settlement to
+wallets, for a demo where the contributor must be the one to settle.
+
 Two defences against unreliable public RPCs live here: an empty `eth_getLogs` answer is re-asked
 up to twice before it is believed, and a re-read that reports fewer measurements or settlements
 than the snapshot already served is discarded, because logs on an append-only chain cannot
@@ -235,7 +271,10 @@ paid measurement back.
 - **Location:** a geohash of at most 6 characters (~1.2 km × 0.6 km), enforced by the gateway,
   stored on-chain as `bytes32`. No coordinate is transmitted or stored anywhere.
 - **Admission:** only the relayer may write to the registry; the gateway's checks are what that
-  address carries on-chain.
+  address carries on-chain. The registry also recovers the contributor's signature, so the relayer
+  cannot attribute a measurement to anyone who did not sign it.
+- **Spam:** 3 measurements per contributor per cell per 10 minutes at the gateway. A policy, not a
+  Sybil defence.
 - **Payment:** inclusion ≠ success (receipt status), emitter binding, `queryId` and
   `measurementRoot` replay protection, freshness window, sibling cross-check between routes,
   pull-payment rewards.
@@ -265,14 +304,15 @@ variables set the gateway still accepts measurements as `SUBMITTED`, the worker 
 
 ## 9. Known limitations
 
-- Contributor signatures are verified at the gateway by signer recovery, but they are not carried
-  on-chain: the settlement contract trusts the relayer's admission decision, not the signature.
+- The relayer remains the admission point: an offline relayer stalls new measurements, though
+  anything already committed can be settled by anyone. Attribution can no longer be forged by it.
 - Read direction only. Attestcoin write-ability has no public reference implementation and has
   not cleared third-party audit.
 - Attested ≠ finalized: attestation runs 65–85 blocks ahead of Sepolia's `finalized` tag, so a
   deep reorg could in principle invalidate an attested height.
 - End-to-end latency is 9–13 minutes, dominated by attestation. A demo pre-warms a proof.
-- Anti-Sybil scoring, platform attestation, and a retention policy are not implemented.
+- Anti-Sybil is a per-cell rate limit only; platform attestation, stake-weighted rewards, buyer
+  authentication and a retention policy are not implemented.
 
 ## References
 

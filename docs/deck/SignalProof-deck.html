@@ -103,7 +103,7 @@
   .tag.coral { background: #FDE8E4; color: #B5432F; }
   .shots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
   .shot { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-  .shot img { display: block; width: 100%; height: 300px; object-fit: cover; object-position: top; }
+  .shot img { display: block; width: 100%; height: 252px; object-fit: cover; object-position: top; }
   .shot .cap { padding: 12px 14px 14px; font-size: 16px; line-height: 1.35; }
   .shot .cap b { color: var(--ink); font-weight: 600; }
   .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 8px; }
@@ -134,6 +134,8 @@
   .slide.dense .kicker { font-size: 17px; margin-bottom: 4px; }
   .slide.dense .stack > * + * { margin-top: 10px; }
   .slide.dense .num { font-size: 34px; }
+  .slide.dense .finding .d { font-size: 14.5px; line-height: 1.38; }
+  .slide.dense .finding .t { font-size: 17px; }
   .big-q { font: 600 30px/1.25 var(--display); color: var(--ink); max-width: 980px; margin-bottom: 24px; letter-spacing: -0.01em; }
 </style>
 </head>
@@ -147,7 +149,7 @@
     <p class="lede">Phones measure real network conditions. Each measurement is committed on Ethereum Sepolia, proven by the Attestcoin Protocol, and settled with a reward on Creditcoin.</p>
     <div class="pipeline">
       <div class="node">Phone<small>latency, throughput, coarse area</small></div><div class="link"></div>
-      <div class="node">Sepolia registry<small>hash committed, block 11,656,985</small></div><div class="link"></div>
+      <div class="node">Sepolia registry<small>signed hash committed, block 11,681,452</small></div><div class="link"></div>
       <div class="node hot">Attestcoin<small>inclusion + continuity proof</small></div><div class="link"></div>
       <div class="node hot">Creditcoin CC3<small>verified, reward accrued</small></div><div class="link"></div>
       <div class="node">Contributor<small>claim() 0.001 CTC</small></div>
@@ -210,9 +212,9 @@
         <tr><th>Protocol detail</th><th>What we do</th></tr>
         <tr><td>Receipt status</td><td>Reject unless <code>receiptStatus == 1</code>. Inclusion is not success.</td></tr>
         <tr><td>Emitter binding</td><td>Reject a log whose emitter is not our registry. Missing from the docs' <code>SimpleMinterASC</code> example, present in Gluwa's <code>ASCLoanManager</code>; mirrored here with a whole-system test where a forged registry holds a valid proof.</td></tr>
+        <tr><td>Contributor signature</td><td>Recovered on-chain by the registry from the exact EIP-191 text the wallet signed. A relayer that names another payee holds no signature for that pairing.</td></tr>
         <tr><td><code>chainKey</code></td><td>Resolved at startup from <code>getSupportedChains()</code> on <code>chainId</code>. It is a <code>uint64</code>; <code>chainName</code> is hex-encoded; key 1 means another chain on Mainnet.</td></tr>
-        <tr><td>Attestation wait</td><td>Poll <code>getLatestAttestedHeightAndHash</code> once per tick. <code>waitUntilHeightAttested</code> blocks 8–20 minutes and would freeze the queue.</td></tr>
-        <tr><td><code>getProof</code></td><td>Check <code>.success</code>, unwrap <code>.data</code>, 120 s timeout with our own backoff.</td></tr>
+        <tr><td>Attestation wait</td><td>Poll the attested height once per tick; the SDK's blocking wait would freeze the queue for 8–20 minutes.</td></tr>
       </table>
       <div class="stack">
         <div class="panel"><div class="kicker">Two replay layers</div><p class="fact"><code>ASCBase</code> deduplicates by <code>queryId</code>; the contract also refuses a <code>measurementRoot</code> it has already settled.</p></div>
@@ -233,23 +235,23 @@
       <div>
         <table>
           <tr><th>Contract</th><th>Chain</th><th>Address</th></tr>
-          <tr><td>SourceBatchRegistry</td><td>Sepolia<br><span class="muted">11155111</span></td><td class="hash">0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc</td></tr>
+          <tr><td>SourceBatchRegistry <span class="muted">(signature on-chain)</span></td><td>Sepolia<br><span class="muted">11155111</span></td><td class="hash">0x32c0923cD58523864D2727FCaaB109783664c236</td></tr>
           <tr><td>SignalProofSettlement</td><td>CC3 Testnet<br><span class="muted">102031</span></td><td class="hash">0x8F14B2cC1b807203d332DE6E3DA6274176FDb584</td></tr>
           <tr><td>SignalProofBatchSettlement</td><td>CC3 Testnet<br><span class="muted">102031</span></td><td class="hash">0x3B90e22f246bBa68f6de682b564c33b121D68C85</td></tr>
         </table>
         <table style="margin-top:14px">
-          <tr><th>One recorded run</th><th>Result</th></tr>
-          <tr><td>Measurement committed to Sepolia</td><td><span class="hash">0x224746…368f7</span> block 11,656,985</td></tr>
-          <tr><td>Attestation reached that block</td><td>8.3 min, lag 35 blocks, advancing 10 at a time</td></tr>
-          <tr><td>Inclusion proof</td><td>7 Merkle siblings, 6 continuity roots, 1,952-byte <code>txBytes</code></td></tr>
-          <tr><td>Settled on Creditcoin</td><td><span class="hash">0x26c87e…d5c13</span> block 5,448,623, 150,640 gas</td></tr>
-          <tr><td><code>claim()</code></td><td><span class="hash">0x148536…e0030</span> pool 5.000 to 4.999 CTC</td></tr>
+          <tr><th>First run through the signed registry</th><th>Result</th></tr>
+          <tr><td>Signed measurement committed to Sepolia</td><td><span class="hash">0xbd7261…7223</span> block 11,681,452</td></tr>
+          <tr><td>Attestation reached that block</td><td>9.6 min, advancing 10 blocks at a time</td></tr>
+          <tr><td>Inclusion proof</td><td>7 Merkle siblings, 9 continuity roots, 2,112-byte <code>txBytes</code></td></tr>
+          <tr><td>Settled on Creditcoin</td><td><span class="hash">0x60d9e4…a2b5</span> block 5,468,910, 154,224 gas</td></tr>
+          <tr><td>Earlier: <code>claim()</code></td><td><span class="hash">0x148536…e0030</span> pool 5.000 to 4.999 CTC</td></tr>
         </table>
       </div>
       <div class="stack">
-        <div class="panel ink"><div class="num" style="color:#fff">8.5<small style="color:rgba(255,255,255,.62)">minutes end to end</small></div><p class="muted" style="margin-top:8px;font-size:16px">dominated by the attestation wait</p></div>
+        <div class="panel ink"><div class="num" style="color:#fff">9.8<small style="color:rgba(255,255,255,.62)">minutes end to end</small></div><p class="muted" style="margin-top:8px;font-size:16px">8.5 on the earlier run; the attestation wait is the whole cost</p></div>
         <div class="panel"><div class="num">3 in 1<small>batch settlement</small></div><p class="fact" style="margin-top:8px;font-size:16px">Three measurements, one continuity proof, one CC3 transaction — <span class="hash">0xcf1a01…c49598</span> and <span class="hash">0xb0933e…32d990</span>.</p></div>
-        <div class="panel"><div class="num">67 <small>Foundry tests</small></div><div class="num" style="margin-top:6px">93 <small>server tests</small></div><p class="fact" style="margin-top:8px;font-size:16px">plus a live smoke test of the Attestcoin read path that passes from a clean clone.</p></div>
+        <div class="panel"><div class="num">75 <small>Foundry tests</small></div><div class="num" style="margin-top:6px">127 <small>server tests</small></div><p class="fact" style="margin-top:8px;font-size:16px">plus a live smoke test of the Attestcoin read path that passes from a clean clone.</p></div>
       </div>
     </div>
     <div class="foot"><span>Evidence — all transactions are linked in the README</span><span>SignalProof</span></div>
@@ -257,17 +259,18 @@
 </section>
 
 <!-- 6 · We attacked our own system -->
-<section class="slide">
+<section class="slide dense">
   <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">6 / 11</span></aside>
   <div class="content">
-    <h1>Three ways to get paid for nothing, found and closed before submission.</h1>
+    <h1>Four ways to get paid for nothing, found and closed before submission.</h1>
     <p class="lede">Each exploit is kept in the test suite with its assertions inverted, so reopening the hole fails a test instead of quietly working.</p>
-    <div class="cols" style="grid-template-columns:1fr 1fr 1fr;gap:26px">
+    <div class="cols" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:22px">
       <div class="finding"><div class="no">1</div><div><div class="t">The registry was permissionless</div><div class="d">Anyone could call the real registry, name themselves as payee, obtain a genuine proof and settle it. Emitter binding passes, because the event really came from the bound registry. Fixed by gating admission to the relayer that carries the gateway's checks. Redeployed. <code>AdvUnlimitedMint.t.sol</code></div></div></div>
       <div class="finding"><div class="no">2</div><div><div class="t">One measurement paid twice</div><div class="d">Two settlement routes, one registry, two <code>settled</code> maps. The same genuine proof could be paid from both pools. The batch contract now defers to any root a sibling already paid, via a guarded <code>staticcall</code> that degrades to no cross-check rather than refusing everyone. <code>DoubleSettlement.t.sol</code></div></div></div>
       <div class="finding"><div class="no">3</div><div><div class="t">One poisoned log killed a batch</div><div class="d">A Sepolia transaction that touched the registry and emitted a lookalike log made the batch revert forever, taking the honest measurements down with it. Foreign logs are now skipped and reported through <code>ForeignLogSkipped</code>. <code>BatchPoison.t.sol</code></div></div></div>
+      <div class="finding"><div class="no">4</div><div><div class="t">The relayer could name the payee</div><div class="d">Gating on the relayer left one party fully trusted: it could commit a genuine event naming anyone as contributor. The registry now recovers the contributor's EIP-191 signature on-chain; a vector signed with ethers is accepted by the contract. <code>SourceBatchRegistry.t.sol</code></div></div></div>
     </div>
-    <div class="panel" style="margin-top:28px"><p class="fact"><b>Why this matters for Attestcoin depth.</b> The precompile was never wrong in any of these. Every exploit used a genuine proof. The application layer is where cross-chain security is won or lost, and that is the layer this project spent its time on.</p></div>
+    <div class="panel" style="margin-top:18px"><p class="fact"><b>Why this matters for Attestcoin depth.</b> The precompile was never wrong in any of these; every exploit used a genuine proof. Admission, attribution, replay and batching are where cross-chain security is won or lost — that is where this project spent its time.</p></div>
     <div class="foot"><span>Security findings</span><span>SignalProof</span></div>
   </div>
 </section>
@@ -301,11 +304,11 @@
   <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><span class="n">8 / 11</span></aside>
   <div class="content">
     <h1>The dashboard reads the chains, not a database.</h1>
-    <p class="lede">Every number below is a join of <code>MeasurementSubmitted</code> on Sepolia with <code>MeasurementVerified</code> on Creditcoin. A clone with only the RPC URLs and contract addresses shows the same thing.</p>
+    <p class="lede">Every number below is a join of <code>MeasurementSubmitted</code> on Sepolia with <code>MeasurementVerified</code> on Creditcoin. A keyless clone shows the same thing, and a buyer can query it: <code>/v1/areas/qqguw6</code> returns the aggregates and every sample with its two transactions.</p>
     <div class="shots">
       <div class="shot"><img src="img/overview.jpg" alt="Coverage overview: 7 measurements, 7 settled, 0.007 CTC rewards" /><div class="cap"><b>Coverage overview.</b> Verified share, settlements, rewards, and the four-stage proof spine, all live.</div></div>
-      <div class="shot"><img src="img/map.jpg" alt="Coverage map showing one geohash cell in Jakarta" /><div class="cap"><b>Coverage map.</b> The shaded box is the geohash cell itself, 1.2 km by 0.6 km. Areas that cannot be decoded are listed as unmapped, never placed.</div></div>
-      <div class="shot"><img src="img/proof-queue.jpg" alt="Proof queue listing settled measurements with explorer links" /><div class="cap"><b>Proof queue.</b> Each row links to the settlement transaction on Blockscout, or the source commitment while it waits.</div></div>
+      <div class="shot"><img src="img/map.jpg" alt="Coverage map showing one geohash cell in Jakarta" /><div class="cap"><b>Coverage map.</b> The shaded box is the geohash cell itself, 1.2 km by 0.6 km. Undecodable areas are listed as unmapped, never placed.</div></div>
+      <div class="shot"><img src="img/proof-queue.jpg" alt="Proof queue listing settled measurements with explorer links" /><div class="cap"><b>Proof queue.</b> Each row opens the live Attestcoin proof — attested height, Merkle path, continuity roots, the exact execute() call — and can be settled from the contributor's own wallet.</div></div>
     </div>
     <div class="foot"><span>Screenshots taken on 2026-09-11 from the live testnet deployment</span><span>SignalProof</span></div>
   </div>
@@ -348,20 +351,19 @@
       <div>
         <div class="kicker">Known limitations</div>
         <ul class="plain todo">
-          <li>Contributor signatures are verified at the gateway by signer recovery, but not carried on-chain — settlement still trusts the relayer's admission decision.</li>
+          <li>The relayer is still the admission point: if it goes offline, new measurements wait. It can no longer forge attribution — the registry checks the contributor's signature on-chain.</li>
           <li>Read direction only, Sepolia to Creditcoin. Write-ability has no public reference implementation and has not cleared third-party audit.</li>
           <li>Attested is not finalized: attestation runs 65–85 blocks ahead of Sepolia's <code>finalized</code> tag. A deep reorg could in principle invalidate an attested height.</li>
           <li>End to end is 9–13 minutes. A live real-time demo is not possible; the demo pre-warms a proof.</li>
-          <li>No anti-Sybil scoring or platform attestation yet; the browser client is the measurement client.</li>
+          <li>Anti-Sybil is a rate limit (3 per contributor per cell per 10 min), not a defence; no platform attestation; the browser client is the measurement client. The buyer API has no authentication or retention policy.</li>
         </ul>
       </div>
       <div>
         <div class="kicker">Next 90 days</div>
         <ul class="plain">
-          <li>Carry the contributor signature on-chain so settlement can check it without trusting the relayer.</li>
-          <li>Buyer API: area coverage snapshots with retention policy and authentication.</li>
+          <li>Buyer API v2: authentication, retention policy, and cell-level subscriptions on top of the read-only v1 that ships today.</li>
           <li>Native measurement client with background sampling and device attestation.</li>
-          <li>Sybil resistance: per-device rate limits, stake-weighted rewards, cell-level anomaly detection.</li>
+          <li>Sybil resistance beyond the rate limit: device attestation, stake-weighted rewards, cell-level anomaly detection.</li>
           <li>Write-ability once an audited reference implementation exists, so settlement can push results back to the source chain.</li>
         </ul>
       </div>
@@ -387,7 +389,7 @@
           <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Repository</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">github.com/mdlog/signalproof</span></td></tr>
           <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Demo video</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">linked from the BUIDL page on DoraHacks</span></td></tr>
           <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Settlement contract</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">creditcoin-testnet.blockscout.com/address/0x8F14…b584</span></td></tr>
-          <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Source registry</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">sepolia.etherscan.io/address/0x15F3…59Dc</span></td></tr>
+          <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Source registry</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">sepolia.etherscan.io/address/0x32c0…c236</span></td></tr>
           <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Protocol</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">docs.attestcoin.org</span></td></tr>
         </table>
         <p class="muted" style="margin-top:16px;font-size:15px">Built on the Attestcoin Protocol by Gluwa. Contract patterns follow gluwa/attestcoin-protocol-examples (Apache-2.0). MIT licensed.</p>
