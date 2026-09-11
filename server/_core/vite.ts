@@ -3,10 +3,18 @@ import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
 import path from "path";
-import { createServer as createViteServer } from "vite";
-import viteConfig from "../../vite.config";
 
 export async function setupVite(app: Express, server: Server) {
+  // Loaded only in development. A static import would make the production bundle require vite
+  // (a devDependency) at startup, which is exactly what the container image does not ship.
+  // The config path is deliberately not a literal: esbuild would otherwise bundle vite.config.ts
+  // (and its static `import ... from "vite"`) into the production server.
+  const viteConfigPath = "../../vite.config";
+  const [{ createServer: createViteServer }, { default: viteConfig }] = await Promise.all([
+    import("vite"),
+    import(viteConfigPath) as Promise<{ default: Record<string, unknown> }>,
+  ]);
+
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },

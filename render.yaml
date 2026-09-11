@@ -1,0 +1,41 @@
+# Render — connect the repo as a Blueprint; set the chain variables (see .env.example) as
+# environment variables, the relayer keys as secret ones. Geolocation on phones needs HTTPS,
+# which Render provides on its onrender.com domain.
+services:
+  - type: web
+    name: signalproof
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/trpc/signalproof.integrationStatus
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: SEPOLIA_RPC_URL
+        value: https://sepolia.gateway.tenderly.co
+      - key: CREDITCOIN_RPC_URL
+        value: https://rpc.cc3-testnet.creditcoin.network
+      - key: ATTESTCOIN_PROOF_SERVICE_URL
+        value: https://prover.cc3-testnet.creditcoin.network
+      - key: ATTESTCOIN_CHAIN_KEY
+        value: "1"
+      - key: SOURCE_BATCH_REGISTRY_ADDRESS
+        sync: false
+      - key: SOURCE_BATCH_REGISTRY_DEPLOY_BLOCK
+        sync: false
+      - key: RETIRED_REGISTRIES
+        sync: false
+      - key: SETTLEMENT_CONTRACT_ADDRESS
+        sync: false
+      - key: SETTLEMENT_DEPLOY_BLOCK
+        sync: false
+      - key: BATCH_SETTLEMENT_ADDRESS
+        sync: false
+      - key: BATCH_SETTLEMENT_DEPLOY_BLOCK
+        sync: false
+      - key: SEPOLIA_RELAYER_PRIVATE_KEY
+        sync: false
+      - key: CREDITCOIN_RELAYER_PRIVATE_KEY
+        sync: false

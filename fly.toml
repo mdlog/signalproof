@@ -1,0 +1,30 @@
+# Fly.io — `fly launch --copy-config --no-deploy`, then `fly secrets set` the chain variables
+# (see .env.example) and `fly deploy`. One small machine is enough: the worker ticks every 15 s and
+# the dashboard reads two public RPCs.
+app = "signalproof"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "off"     # the proof worker must keep ticking between visits
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/api/trpc/signalproof.integrationStatus"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

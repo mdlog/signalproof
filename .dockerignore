@@ -1,0 +1,14 @@
+node_modules
+dist
+contracts/out
+contracts/cache
+contracts/broadcast
+contracts/lib
+.env
+.env.*
+!.env.example
+.git
+docs
+*.md
+!README.md
+.manus-logs
