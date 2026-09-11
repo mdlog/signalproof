@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>SignalProof — BUIDL CTC 2026 Fall deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* Tokens — the product's own palette, so the deck and the demo read as one thing. */
+  :root {
+    --ink: #0F2438;      /* navy: rail, title slide, evidence panels */
+    --paper: #F5F8FA;    /* slide ground */
+    --teal: #147A70;     /* verified / settled */
+    --teal-soft: #62DCCB;
+    --coral: #F06A59;    /* the one action colour */
+    --amber: #F4B95E;    /* waiting */
+    --slate: #426176;    /* body text */
+    --muted: #7B8F9D;    /* secondary text */
+    --line: #DCE5EB;
+    --display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+    --body: "Source Sans 3", "Segoe UI", Roboto, sans-serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+  }
+  @page { size: 1280px 720px; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #cfd8de; }
+  body { font-family: var(--body); color: var(--slate); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .slide {
+    position: relative; width: 1280px; height: 720px; overflow: hidden;
+    background: var(--paper); page-break-after: always; break-after: page;
+    display: grid; grid-template-columns: 88px 1fr; margin: 0 auto;
+  }
+  @media screen { .slide { margin: 24px auto; box-shadow: 0 8px 40px rgba(15,36,56,.18); } }
+
+  /* The evidence rail: one navy strip on every slide, the marker travels from phone to reward. */
+  .rail { background: var(--ink); position: relative; }
+  .rail::before { content: ""; position: absolute; left: 43px; top: 72px; bottom: 72px; width: 2px; background: rgba(255,255,255,.14); }
+  .rail .stop { position: absolute; left: 36px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); border: 2px solid rgba(255,255,255,.28); }
+  .rail .stop.here { background: var(--coral); border-color: var(--coral); box-shadow: 0 0 0 6px rgba(240,106,89,.22); }
+  .rail .stop.done { background: var(--teal-soft); border-color: var(--teal-soft); }
+  .rail .stop:nth-child(1) { top: 64px; }
+  .rail .stop:nth-child(2) { top: 208px; }
+  .rail .stop:nth-child(3) { top: 352px; }
+  .rail .stop:nth-child(4) { top: 496px; }
+  .rail .stop:nth-child(5) { top: 640px; }
+  .rail .n { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: rgba(255,255,255,.45); font: 500 12px/1 var(--mono); }
+
+  .content { padding: 56px 72px 48px 64px; display: flex; flex-direction: column; }
+  h1 { font: 700 44px/1.08 var(--display); letter-spacing: -0.025em; color: var(--ink); margin: 0 0 14px; max-width: 980px; }
+  h1 .quiet { color: var(--teal); }
+  .lede { font-size: 22px; line-height: 1.45; max-width: 860px; margin: 0 0 28px; }
+  p { margin: 0; }
+  .grow { flex: 1; }
+
+  /* Title slide */
+  .slide.title { grid-template-columns: 1fr; background: var(--ink); color: #fff; }
+  .slide.title .content { padding: 72px 96px; }
+  .slide.title h1 { color: #fff; font-size: 88px; letter-spacing: -0.035em; margin-bottom: 20px; }
+  .slide.title .lede { color: rgba(255,255,255,.82); font-size: 28px; max-width: 900px; }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; }
+  .brand .mark { width: 40px; height: 40px; border-radius: 12px; background: #fff; display: grid; place-items: center; }
+  .brand .mark i { display: block; width: 22px; height: 16px; background:
+    linear-gradient(var(--ink), var(--ink)) 0 100%/4px 8px no-repeat,
+    linear-gradient(var(--ink), var(--ink)) 9px 100%/4px 12px no-repeat,
+    linear-gradient(var(--coral), var(--coral)) 18px 100%/4px 16px no-repeat; }
+  .brand span { font: 600 18px/1 var(--display); letter-spacing: .06em; }
+  .pipeline { display: flex; align-items: center; gap: 0; margin-top: auto; }
+  .pipeline .node { padding: 14px 18px; border: 1px solid rgba(255,255,255,.22); border-radius: 12px; font: 600 17px/1.25 var(--display); min-width: 168px; }
+  .pipeline .node small { display: block; font: 400 14px/1.3 var(--body); color: rgba(255,255,255,.62); margin-top: 4px; }
+  .pipeline .node.hot { border-color: var(--teal-soft); background: rgba(98,220,203,.10); }
+  .pipeline .link { width: 40px; height: 2px; background: rgba(255,255,255,.28); position: relative; }
+  .pipeline .link::after { content: ""; position: absolute; right: -1px; top: -4px; border: 5px solid transparent; border-left-color: rgba(255,255,255,.5); }
+  .meta { display: flex; gap: 28px; margin-top: 36px; color: rgba(255,255,255,.62); font-size: 17px; }
+  .meta b { color: #fff; font-weight: 600; }
+
+  /* Reusable pieces */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .cols.wide { grid-template-columns: 1.25fr 1fr; }
+  .stack > * + * { margin-top: 16px; }
+  .fact { font-size: 19px; line-height: 1.45; }
+  .fact b { color: var(--ink); font-weight: 600; }
+  .fact .why { color: var(--muted); }
+  .kicker { font: 600 20px/1.3 var(--display); color: var(--ink); margin-bottom: 6px; }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+  .panel.ink { background: var(--ink); color: #fff; border-color: transparent; }
+  .panel.ink .muted { color: rgba(255,255,255,.62); }
+  .muted { color: var(--muted); }
+  .num { font: 600 42px/1 var(--display); color: var(--ink); letter-spacing: -0.02em; }
+  .num small { font: 400 16px/1 var(--body); color: var(--muted); margin-left: 6px; }
+  code, .hash { font-family: var(--mono); font-size: 15px; }
+  .hash { color: var(--teal); }
+  .panel.ink .hash { color: var(--teal-soft); }
+  table { border-collapse: collapse; width: 100%; font-size: 17px; }
+  th { text-align: left; font-weight: 600; color: var(--ink); padding: 8px 10px 10px; border-bottom: 2px solid var(--line); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.35; }
+  td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .ok { color: var(--teal); font-weight: 600; }
+  .warn { color: #9A6517; font-weight: 600; }
+  .tag { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 14px; font-weight: 600; background: #FFF0D2; color: #9A6517; }
+  .tag.teal { background: #E6F6F3; color: var(--teal); }
+  .tag.coral { background: #FDE8E4; color: #B5432F; }
+  .shots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .shot { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .shot img { display: block; width: 100%; height: 300px; object-fit: cover; object-position: top; }
+  .shot .cap { padding: 12px 14px 14px; font-size: 16px; line-height: 1.35; }
+  .shot .cap b { color: var(--ink); font-weight: 600; }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 8px; }
+  .step { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 14px; min-height: 176px; }
+  .step .t { font: 600 19px/1.2 var(--display); color: var(--ink); margin-bottom: 8px; }
+  .step .d { font-size: 16px; line-height: 1.4; }
+  .step .time { margin-top: 10px; font: 500 14px/1 var(--mono); color: var(--muted); }
+  .step.settle { border-color: var(--teal); background: #F0FAF8; }
+  .foot { margin-top: auto; padding-top: 18px; font-size: 15px; color: var(--muted); display: flex; justify-content: space-between; }
+  .finding { display: grid; grid-template-columns: 44px 1fr; gap: 14px; }
+  .finding .no { width: 44px; height: 44px; border-radius: 12px; background: var(--ink); color: #fff; display: grid; place-items: center; font: 600 18px/1 var(--display); }
+  .finding .t { font: 600 20px/1.25 var(--display); color: var(--ink); }
+  .finding .d { font-size: 17px; line-height: 1.42; margin-top: 4px; }
+  .finding .d code { font-size: 14px; color: var(--teal); }
+  ul.plain { list-style: none; padding: 0; margin: 0; }
+  ul.plain li { position: relative; padding-left: 20px; font-size: 18px; line-height: 1.4; margin-bottom: 9px; }
+  ul.plain li::before { content: ""; position: absolute; left: 0; top: 11px; width: 9px; height: 9px; border-radius: 50%; background: var(--teal); }
+  ul.plain.todo li::before { background: var(--amber); }
+  .links a { color: var(--teal); text-decoration: none; border-bottom: 1px solid rgba(20,122,112,.35); }
+  .slide.dense .content { padding-top: 44px; }
+  .slide.dense h1 { font-size: 38px; margin-bottom: 10px; }
+  .slide.dense .lede { font-size: 19px; margin-bottom: 18px; }
+  .slide.dense table { font-size: 15px; }
+  .slide.dense td { padding: 6px 8px; }
+  .slide.dense th { padding: 6px 8px 8px; }
+  .slide.dense .panel { padding: 14px 16px; }
+  .slide.dense .fact { font-size: 16px; line-height: 1.38; }
+  .slide.dense .kicker { font-size: 17px; margin-bottom: 4px; }
+  .slide.dense .stack > * + * { margin-top: 10px; }
+  .slide.dense .num { font-size: 34px; }
+  .big-q { font: 600 30px/1.25 var(--display); color: var(--ink); max-width: 980px; margin-bottom: 24px; letter-spacing: -0.01em; }
+</style>
+</head>
+<body>
+
+<!-- 1 · Title -->
+<section class="slide title">
+  <div class="content">
+    <div class="brand"><div class="mark"><i></i></div><span>SIGNALPROOF</span></div>
+    <h1>Connectivity data<br>a contract can check.</h1>
+    <p class="lede">Phones measure real network conditions. Each measurement is committed on Ethereum Sepolia, proven by the Attestcoin Protocol, and settled with a reward on Creditcoin.</p>
+    <div class="pipeline">
+      <div class="node">Phone<small>latency, throughput, coarse area</small></div><div class="link"></div>
+      <div class="node">Sepolia registry<small>hash committed, block 11,656,985</small></div><div class="link"></div>
+      <div class="node hot">Attestcoin<small>inclusion + continuity proof</small></div><div class="link"></div>
+      <div class="node hot">Creditcoin CC3<small>verified, reward accrued</small></div><div class="link"></div>
+      <div class="node">Contributor<small>claim() 0.001 CTC</small></div>
+    </div>
+    <div class="meta"><span><b>BUIDL CTC 2026 Fall</b></span><span>DePIN track</span><span>Deployed and verified on Sepolia and CC3 Testnet</span></div>
+  </div>
+</section>
+
+<!-- 2 · Problem -->
+<section class="slide">
+  <aside class="rail"><i class="stop here"></i><i class="stop"></i><i class="stop"></i><i class="stop"></i><i class="stop"></i><span class="n">2 / 11</span></aside>
+  <div class="content">
+    <h1>Anyone can claim coverage numbers.<br><span class="quiet">Nobody can prove them.</span></h1>
+    <p class="lede">Operators publish coverage maps. DePIN networks pay contributors for connectivity data. Venues and public programs buy both. None of them can audit what they are paying for.</p>
+    <div class="cols">
+      <div class="stack">
+        <p class="fact"><b>The data is self-reported.</b> A coverage claim is a number someone typed. The device that produced it, the place, the time — none of it is checkable after the fact.</p>
+        <p class="fact"><b>The incentive is to inflate.</b> Where contributors are paid per sample, a fake sample is worth exactly as much as a real one until someone can tell them apart.</p>
+        <p class="fact"><b>Location data is the price of honesty today.</b> The usual fix is to collect precise GPS trails, which no one should have to hand over to prove their phone had two bars.</p>
+      </div>
+      <div class="panel ink">
+        <div class="kicker" style="color:#fff">What SignalProof changes</div>
+        <p class="fact" style="color:rgba(255,255,255,.85)">The measurement becomes an event on a public chain, the event is proven to a second chain by the Attestcoin Protocol, and a contract there decides — from the proof alone — whether it is real enough to pay for.</p>
+        <p class="fact muted" style="margin-top:14px">Not the gateway. Not the relayer. Not the person who ran the test. The proof.</p>
+      </div>
+    </div>
+    <div class="foot"><span>Problem</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 3 · How it works -->
+<section class="slide">
+  <aside class="rail"><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><i class="stop"></i><span class="n">3 / 11</span></aside>
+  <div class="content">
+    <h1>One measurement, two chains, one decision.</h1>
+    <p class="lede">Everything before the Sepolia event decides what is <b>admitted</b>. Everything after it decides what is <b>paid</b>. The two never trust each other.</p>
+    <div class="steps">
+      <div class="step"><div class="t">Measure</div><div class="d">Browser client: median of 7 timed pings, a 3 MB download, the network class, and a geohash-6 area. No coordinate leaves the device.</div><div class="time">seconds</div></div>
+      <div class="step"><div class="t">Admit</div><div class="d">Gateway recomputes the measurement root, checks freshness and uniqueness, then the relayer commits the hash to <code>SourceBatchRegistry</code>.</div><div class="time">next 15 s tick</div></div>
+      <div class="step"><div class="t">Attest</div><div class="d">Creditcoin's attestation of Sepolia catches up to the block. The worker polls the attested height once per tick instead of blocking.</div><div class="time">7–9 min</div></div>
+      <div class="step"><div class="t">Prove</div><div class="d">ProofBuilder returns the Merkle inclusion proof and the continuity proof for the transaction.</div><div class="time">7 siblings, 6 roots</div></div>
+      <div class="step settle"><div class="t">Settle</div><div class="d"><code>SignalProofSettlement</code> verifies through the BlockProver precompile, applies its own checks, and accrues 0.001 CTC to the contributor.</div><div class="time">150,640 gas</div></div>
+    </div>
+    <div class="cols" style="margin-top:26px">
+      <p class="fact"><b>Recorded end to end: 8.5 minutes</b>, from the Sepolia transaction to a claimable reward. The attestation wait is the whole cost; everything else is seconds.</p>
+      <p class="fact"><b>Payment is permissionless.</b> Anyone holding a valid proof may settle it. All authorisation lives in the contract's checks, so a relayer that disappears cannot strand a measurement.</p>
+    </div>
+    <div class="foot"><span>How it works</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 4 · Attestcoin depth -->
+<section class="slide dense">
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">4 / 11</span></aside>
+  <div class="content">
+    <h1>What the precompile proves, and the two things it does not.</h1>
+    <p class="lede"><code>SignalProofSettlement</code> inherits <code>ASCBase</code> and overrides one hook. The BlockProver precompile proves inclusion in an attested Sepolia block — not that the transaction succeeded, and not which contract emitted its logs.</p>
+    <div class="cols wide">
+      <table>
+        <tr><th>Protocol detail</th><th>What we do</th></tr>
+        <tr><td>Receipt status</td><td>Reject unless <code>receiptStatus == 1</code>. Inclusion is not success.</td></tr>
+        <tr><td>Emitter binding</td><td>Reject a log whose emitter is not our registry. Missing from the docs' <code>SimpleMinterASC</code> example, present in Gluwa's <code>ASCLoanManager</code>; mirrored here with a whole-system test where a forged registry holds a valid proof.</td></tr>
+        <tr><td><code>chainKey</code></td><td>Resolved at startup from <code>getSupportedChains()</code> on <code>chainId</code>. It is a <code>uint64</code>; <code>chainName</code> is hex-encoded; key 1 means another chain on Mainnet.</td></tr>
+        <tr><td>Attestation wait</td><td>Poll <code>getLatestAttestedHeightAndHash</code> once per tick. <code>waitUntilHeightAttested</code> blocks 8–20 minutes and would freeze the queue.</td></tr>
+        <tr><td><code>getProof</code></td><td>Check <code>.success</code>, unwrap <code>.data</code>, 120 s timeout with our own backoff.</td></tr>
+      </table>
+      <div class="stack">
+        <div class="panel"><div class="kicker">Two replay layers</div><p class="fact"><code>ASCBase</code> deduplicates by <code>queryId</code>; the contract also refuses a <code>measurementRoot</code> it has already settled.</p></div>
+        <div class="panel"><div class="kicker">Batch route</div><p class="fact">Many measurements, one continuity proof, one transaction. A bad entry is skipped and reported, never fatal to the honest ones beside it.</p></div>
+        <div class="panel"><div class="kicker">Pull-payment rewards</div><p class="fact">No value moves on the verification path, so a reverting receiver cannot block settlement for anyone else.</p></div>
+      </div>
+    </div>
+    <div class="foot"><span>Attestcoin Protocol integration</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 5 · Live on testnet -->
+<section class="slide dense">
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">5 / 11</span></aside>
+  <div class="content">
+    <h1>Deployed, verified, and settled on-chain.</h1>
+    <div class="cols wide">
+      <div>
+        <table>
+          <tr><th>Contract</th><th>Chain</th><th>Address</th></tr>
+          <tr><td>SourceBatchRegistry</td><td>Sepolia<br><span class="muted">11155111</span></td><td class="hash">0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc</td></tr>
+          <tr><td>SignalProofSettlement</td><td>CC3 Testnet<br><span class="muted">102031</span></td><td class="hash">0x8F14B2cC1b807203d332DE6E3DA6274176FDb584</td></tr>
+          <tr><td>SignalProofBatchSettlement</td><td>CC3 Testnet<br><span class="muted">102031</span></td><td class="hash">0x3B90e22f246bBa68f6de682b564c33b121D68C85</td></tr>
+        </table>
+        <table style="margin-top:14px">
+          <tr><th>One recorded run</th><th>Result</th></tr>
+          <tr><td>Measurement committed to Sepolia</td><td><span class="hash">0x224746…368f7</span> block 11,656,985</td></tr>
+          <tr><td>Attestation reached that block</td><td>8.3 min, lag 35 blocks, advancing 10 at a time</td></tr>
+          <tr><td>Inclusion proof</td><td>7 Merkle siblings, 6 continuity roots, 1,952-byte <code>txBytes</code></td></tr>
+          <tr><td>Settled on Creditcoin</td><td><span class="hash">0x26c87e…d5c13</span> block 5,448,623, 150,640 gas</td></tr>
+          <tr><td><code>claim()</code></td><td><span class="hash">0x148536…e0030</span> pool 5.000 to 4.999 CTC</td></tr>
+        </table>
+      </div>
+      <div class="stack">
+        <div class="panel ink"><div class="num" style="color:#fff">8.5<small style="color:rgba(255,255,255,.62)">minutes end to end</small></div><p class="muted" style="margin-top:8px;font-size:16px">dominated by the attestation wait</p></div>
+        <div class="panel"><div class="num">3 in 1<small>batch settlement</small></div><p class="fact" style="margin-top:8px;font-size:16px">Three measurements, one continuity proof, one CC3 transaction — <span class="hash">0xcf1a01…c49598</span> and <span class="hash">0xb0933e…32d990</span>.</p></div>
+        <div class="panel"><div class="num">67 <small>Foundry tests</small></div><div class="num" style="margin-top:6px">93 <small>server tests</small></div><p class="fact" style="margin-top:8px;font-size:16px">plus a live smoke test of the Attestcoin read path that passes from a clean clone.</p></div>
+      </div>
+    </div>
+    <div class="foot"><span>Evidence — all transactions are linked in the README</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 6 · We attacked our own system -->
+<section class="slide">
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">6 / 11</span></aside>
+  <div class="content">
+    <h1>Three ways to get paid for nothing, found and closed before submission.</h1>
+    <p class="lede">Each exploit is kept in the test suite with its assertions inverted, so reopening the hole fails a test instead of quietly working.</p>
+    <div class="cols" style="grid-template-columns:1fr 1fr 1fr;gap:26px">
+      <div class="finding"><div class="no">1</div><div><div class="t">The registry was permissionless</div><div class="d">Anyone could call the real registry, name themselves as payee, obtain a genuine proof and settle it. Emitter binding passes, because the event really came from the bound registry. Fixed by gating admission to the relayer that carries the gateway's checks. Redeployed. <code>AdvUnlimitedMint.t.sol</code></div></div></div>
+      <div class="finding"><div class="no">2</div><div><div class="t">One measurement paid twice</div><div class="d">Two settlement routes, one registry, two <code>settled</code> maps. The same genuine proof could be paid from both pools. The batch contract now defers to any root a sibling already paid, via a guarded <code>staticcall</code> that degrades to no cross-check rather than refusing everyone. <code>DoubleSettlement.t.sol</code></div></div></div>
+      <div class="finding"><div class="no">3</div><div><div class="t">One poisoned log killed a batch</div><div class="d">A Sepolia transaction that touched the registry and emitted a lookalike log made the batch revert forever, taking the honest measurements down with it. Foreign logs are now skipped and reported through <code>ForeignLogSkipped</code>. <code>BatchPoison.t.sol</code></div></div></div>
+    </div>
+    <div class="panel" style="margin-top:28px"><p class="fact"><b>Why this matters for Attestcoin depth.</b> The precompile was never wrong in any of these. Every exploit used a genuine proof. The application layer is where cross-chain security is won or lost, and that is the layer this project spent its time on.</p></div>
+    <div class="foot"><span>Security findings</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 7 · Batch economics -->
+<section class="slide">
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">7 / 11</span></aside>
+  <div class="content">
+    <h1>Batching is cheaper per entry, and it gets more expensive as it grows.</h1>
+    <p class="lede">Two live runs are not enough to state a saving, so <code>BatchGasProbe.t.sol</code> holds the proof shape fixed and varies only the batch size.</p>
+    <div class="cols wide">
+      <table>
+        <tr><th class="r">Entries</th><th class="r">Total gas</th><th class="r">Marginal gas per extra entry</th></tr>
+        <tr><td class="r">1</td><td class="r">77,828</td><td class="r">—</td></tr>
+        <tr><td class="r">10</td><td class="r">482,141</td><td class="r">44,892</td></tr>
+        <tr><td class="r">50</td><td class="r">2,468,789</td><td class="r">51,015</td></tr>
+        <tr><td class="r">200</td><td class="r">12,476,653</td><td class="r">71,165</td></tr>
+      </table>
+      <div class="stack">
+        <p class="fact"><b>A marginal entry costs 45–71k gas</b> against 78k for a batch of one — and the number rises with size, because the decoder allocates memory it never reclaims and the quadratic memory-expansion term takes over.</p>
+        <p class="fact"><b>So the worker caps a batch at 50</b>, not at the block ceiling. The probe puts that ceiling at 600 entries for a 75,000,000-gas CC3 block; 800 does not fit.</p>
+        <p class="fact"><b>Live numbers agree in shape:</b> 253,284 and 423,360 gas for three measurements, against 150,640 for one. The spread comes from the proof the attestation service happens to return, not from the batch.</p>
+      </div>
+    </div>
+    <div class="foot"><span>Measured, not estimated</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 8 · Product -->
+<section class="slide">
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><span class="n">8 / 11</span></aside>
+  <div class="content">
+    <h1>The dashboard reads the chains, not a database.</h1>
+    <p class="lede">Every number below is a join of <code>MeasurementSubmitted</code> on Sepolia with <code>MeasurementVerified</code> on Creditcoin. A clone with only the RPC URLs and contract addresses shows the same thing.</p>
+    <div class="shots">
+      <div class="shot"><img src="img/overview.jpg" alt="Coverage overview: 7 measurements, 7 settled, 0.007 CTC rewards" /><div class="cap"><b>Coverage overview.</b> Verified share, settlements, rewards, and the four-stage proof spine, all live.</div></div>
+      <div class="shot"><img src="img/map.jpg" alt="Coverage map showing one geohash cell in Jakarta" /><div class="cap"><b>Coverage map.</b> The shaded box is the geohash cell itself, 1.2 km by 0.6 km. Areas that cannot be decoded are listed as unmapped, never placed.</div></div>
+      <div class="shot"><img src="img/proof-queue.jpg" alt="Proof queue listing settled measurements with explorer links" /><div class="cap"><b>Proof queue.</b> Each row links to the settlement transaction on Blockscout, or the source commitment while it waits.</div></div>
+    </div>
+    <div class="foot"><span>Screenshots taken on 2026-09-11 from the live testnet deployment</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 9 · Privacy and real measurement -->
+<section class="slide">
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><span class="n">9 / 11</span></aside>
+  <div class="content">
+    <h1>Coarse by construction. Measured, not asked.</h1>
+    <div class="cols">
+      <div class="stack">
+        <div class="kicker">Location never leaves the phone</div>
+        <p class="fact">The area is a geohash of at most six characters, enforced by the gateway, stored on-chain as <code>bytes32</code>. A cell is roughly <b>1.2 km by 0.6 km</b>; a contributor is somewhere inside the box, never at a dot. The raw coordinate is converted in the same function that reads it and is never transmitted.</p>
+        <div class="kicker" style="margin-top:22px">The wallet is an identity, not a signer</div>
+        <p class="fact">The relayer pays gas on both chains. The connected address only decides who accrues the reward. The one transaction a contributor ever sends is <code>claim()</code>.</p>
+      </div>
+      <div>
+        <div class="kicker">Why we measure instead of asking the browser</div>
+        <table>
+          <tr><th></th><th class="r">Measured by us</th><th class="r">Reported by <code>navigator.connection</code></th></tr>
+          <tr><td>Throughput</td><td class="r ok">40.8 Mbps</td><td class="r">7.5 — capped at 10 by Chromium</td></tr>
+          <tr><td>Latency</td><td class="r ok">68 ms median, 7 samples</td><td class="r">50 — rounded to 50 ms</td></tr>
+          <tr><td>Carrier</td><td class="r">not collected</td><td class="r">no API exposes it</td></tr>
+          <tr><td>5G</td><td class="r">not claimed</td><td class="r">no such value exists</td></tr>
+        </table>
+        <p class="fact" style="margin-top:16px">The UI used to show “5G · Telkomsel”. Both halves were fabricated, so both were deleted. What no browser can provide, the product does not display.</p>
+      </div>
+    </div>
+    <div class="foot"><span>Privacy and honesty</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 10 · Limits and next -->
+<section class="slide">
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><span class="n">10 / 11</span></aside>
+  <div class="content">
+    <h1>What is not done, stated before a judge finds it.</h1>
+    <div class="cols">
+      <div>
+        <div class="kicker">Known limitations</div>
+        <ul class="plain todo">
+          <li>Payload signatures are stored and structurally checked, not yet cryptographically verified.</li>
+          <li>Read direction only, Sepolia to Creditcoin. Write-ability has no public reference implementation and has not cleared third-party audit.</li>
+          <li>Attested is not finalized: attestation runs 65–85 blocks ahead of Sepolia's <code>finalized</code> tag. A deep reorg could in principle invalidate an attested height.</li>
+          <li>End to end is 9–13 minutes. A live real-time demo is not possible; the demo pre-warms a proof.</li>
+          <li>No anti-Sybil scoring or platform attestation yet; the browser client is the measurement client.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="kicker">Next 90 days</div>
+        <ul class="plain">
+          <li>Verify contributor signatures on the gateway and bind them to the on-chain <code>sessionHash</code>.</li>
+          <li>Buyer API: area coverage snapshots with retention policy and authentication.</li>
+          <li>Native measurement client with background sampling and device attestation.</li>
+          <li>Sybil resistance: per-device rate limits, stake-weighted rewards, cell-level anomaly detection.</li>
+          <li>Write-ability once an audited reference implementation exists, so settlement can push results back to the source chain.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot"><span>Limits and roadmap</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 11 · Why Creditcoin, links -->
+<section class="slide">
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><span class="n">11 / 11</span></aside>
+  <div class="content">
+    <h1>Why this belongs on Creditcoin.</h1>
+    <div class="cols">
+      <div class="stack">
+        <p class="fact"><b>The buyer is real.</b> Operators planning capacity, venues negotiating with carriers, and public infrastructure programs auditing coverage commitments all pay for connectivity data today, and none of it is verifiable.</p>
+        <p class="fact"><b>The proof is the product.</b> A coverage snapshot whose every sample can be traced to an attested Sepolia event and a Creditcoin settlement is a different good from a spreadsheet of claims.</p>
+        <p class="fact"><b>Creditcoin is where it settles.</b> Rewards accrue in CTC, the settlement contract is the source of truth, and the Attestcoin Protocol is the reason no oracle operator sits in the middle.</p>
+      </div>
+      <div class="panel ink links">
+        <div class="kicker" style="color:#fff">Links</div>
+        <table style="font-size:16px">
+          <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Repository</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">GITHUB_URL</span></td></tr>
+          <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Demo video</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">DEMO_VIDEO_URL</span></td></tr>
+          <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Settlement contract</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">creditcoin-testnet.blockscout.com/address/0x8F14…b584</span></td></tr>
+          <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Source registry</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">sepolia.etherscan.io/address/0x15F3…59Dc</span></td></tr>
+          <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Protocol</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">docs.attestcoin.org</span></td></tr>
+        </table>
+        <p class="muted" style="margin-top:16px;font-size:15px">Built on the Attestcoin Protocol by Gluwa. Contract patterns follow gluwa/attestcoin-protocol-examples (Apache-2.0). MIT licensed.</p>
+      </div>
+    </div>
+    <div class="foot"><span>BUIDL CTC 2026 Fall, DePIN track</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+</body>
+</html>
