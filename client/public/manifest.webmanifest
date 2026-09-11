@@ -1,0 +1,17 @@
+{
+  "name": "SignalProof — Connectivity Proof on Creditcoin",
+  "short_name": "SignalProof",
+  "description": "Measure real connectivity from your phone. Commit it on Ethereum Sepolia, prove it with the Attestcoin Protocol, settle it on Creditcoin.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F8FA",
+  "theme_color": "#102A43",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

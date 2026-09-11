@@ -1,0 +1,42 @@
+CREATE TABLE `measurements` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int,
+	`deviceAlias` varchar(64) NOT NULL,
+	`areaHash` varchar(128) NOT NULL,
+	`networkType` varchar(32) NOT NULL,
+	`carrier` varchar(128),
+	`latencyMs` int NOT NULL,
+	`downloadMbps` int NOT NULL,
+	`uploadMbps` int NOT NULL,
+	`packetLossBps` int NOT NULL DEFAULT 0,
+	`timestampMs` varchar(32) NOT NULL,
+	`nonce` varchar(128) NOT NULL,
+	`measurementRoot` varchar(128) NOT NULL,
+	`sessionHash` varchar(128) NOT NULL,
+	`signature` text NOT NULL,
+	`status` enum('SUBMITTED','AWAITING_ATTESTATION','PROOF_VERIFIED','SETTLED','REJECTED') NOT NULL DEFAULT 'SUBMITTED',
+	`rejectionCode` varchar(64),
+	`sourceTxHash` varchar(128),
+	`sourceBlockNumber` varchar(32),
+	`proofStatus` varchar(64) NOT NULL DEFAULT 'NOT_STARTED',
+	`creditcoinTxHash` varchar(128),
+	`rewardAmount` int,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `measurements_id` PRIMARY KEY(`id`),
+	CONSTRAINT `measurements_measurementRoot_unique` UNIQUE(`measurementRoot`)
+);
+--> statement-breakpoint
+CREATE TABLE `users` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`openId` varchar(64) NOT NULL,
+	`name` text,
+	`email` varchar(320),
+	`loginMethod` varchar(64),
+	`role` enum('user','admin') NOT NULL DEFAULT 'user',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`lastSignedIn` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `users_id` PRIMARY KEY(`id`),
+	CONSTRAINT `users_openId_unique` UNIQUE(`openId`)
+);

@@ -1,0 +1,27 @@
+[profile.default]
+src = "src"
+out = "out"
+# ../node_modules is a lib root so forge may read the pnpm-symlinked @gluwa/asc-contracts
+# package, which lives outside this project root.
+libs = ["lib", "../node_modules"]
+allow_paths = ["../node_modules"]
+test = "test"
+script = "script"
+
+# Pinned to match the official Gluwa attestcoin-protocol-examples toolchain.
+# via_ir is load-bearing: ASCBase + the decoder hit "stack too deep" without it.
+solc_version = "0.8.30"
+evm_version = "shanghai"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
+
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+cc3 = "${CREDITCOIN_RPC_URL}"
+
+[etherscan]
+# Blockscout needs no API key; verification uses --verifier blockscout.
+cc3 = { key = "unused", url = "https://creditcoin-testnet.blockscout.com/api", chain = 102031 }

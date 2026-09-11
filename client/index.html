@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#102A43" />
+    <meta
+      name="description"
+      content="Verifiable connectivity data for DePIN. Measurements are committed on Ethereum Sepolia, proven by the Attestcoin Protocol, and settled on Creditcoin CC3 Testnet."
+    />
+
+    <title>SignalProof — Connectivity Proof on Creditcoin</title>
+
+    <!-- Link previews. Without these, a shared link falls back to the bare URL. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SignalProof — Connectivity Proof on Creditcoin" />
+    <meta
+      property="og:description"
+      content="Anyone can claim coverage numbers. Nobody can prove them. SignalProof settles measurements cross-chain via the Attestcoin Protocol."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Installable to a phone home screen. The service worker caches the shell only; every
+         /api/ request still goes to the network, because stale chain data would be a lie. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SignalProof" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Registered only over HTTPS/localhost, which is the same constraint geolocation has.
+      if ("serviceWorker" in navigator && window.isSecureContext) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,81 @@
+/* SignalProof product UI: civic infrastructure operations console. Signal navy = trust, aqua = verified, coral = attention, mist = calm evidence surfaces. */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Source Sans 3", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  --radius-sm: 0.45rem;
+  --radius-md: 0.65rem;
+  --radius-lg: 0.9rem;
+  --radius-xl: 1.1rem;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+:root {
+  --radius: 0.7rem;
+  --background: oklch(0.975 0.006 220);
+  --foreground: oklch(0.25 0.045 238);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.25 0.045 238);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.045 238);
+  --primary: oklch(0.25 0.045 238);
+  --primary-foreground: oklch(0.98 0.006 220);
+  --secondary: oklch(0.95 0.012 220);
+  --secondary-foreground: oklch(0.25 0.045 238);
+  --muted: oklch(0.95 0.012 220);
+  --muted-foreground: oklch(0.55 0.03 238);
+  --accent: oklch(0.66 0.14 30);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.66 0.14 30);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.25 0.045 238 / 12%);
+  --input: oklch(0.25 0.045 238 / 15%);
+  --ring: oklch(0.57 0.12 175);
+  --chart-1: oklch(0.57 0.12 175);
+  --chart-2: oklch(0.66 0.14 30);
+  --chart-3: oklch(0.48 0.12 245);
+  --chart-4: oklch(0.7 0.11 88);
+  --chart-5: oklch(0.55 0.05 238);
+}
+
+* { @apply border-border outline-ring/50; }
+html { scroll-behavior: smooth; }
+body {
+  @apply bg-background text-foreground;
+  font-family: "Source Sans 3", sans-serif;
+  min-width: 320px;
+}
+button, a { transition: color 180ms ease-out, background-color 180ms ease-out, border-color 180ms ease-out, transform 180ms ease-out, opacity 180ms ease-out, box-shadow 180ms ease-out; }
+button:active { transform: scale(.98); }
+.font-display { font-family: "Space Grotesk", sans-serif; }
+.font-mono { font-family: "IBM Plex Mono", monospace; }
+::selection { background: #31B7A6; color: #102A43; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

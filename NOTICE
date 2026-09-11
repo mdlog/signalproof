@@ -1,0 +1,12 @@
+SignalProof
+Copyright (c) 2026 SignalProof contributors
+
+This product includes software developed by Gluwa, Inc.
+
+  @gluwa/asc-contracts  — Apache License 2.0
+  @gluwa/usc-sdk        — MIT License
+
+Contract patterns in contracts/src/SignalProofSettlement.sol follow the
+reference implementations in https://github.com/gluwa/attestcoin-protocol-examples
+(Apache License 2.0), in particular the emitter-binding invariant demonstrated by
+ASCLoanManager and its ASCLoanManagerSourceBinding.t.sol regression test.
