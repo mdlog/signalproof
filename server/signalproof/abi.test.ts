@@ -77,6 +77,17 @@ describe("ABI constants", () => {
  * Skipped rather than failed when contracts/out is absent, so `pnpm test` still works on a clean
  * clone that has not run `forge build`.
  */
+describe("registry ABI carries the contributor signature", () => {
+  it("submitMeasurement takes the 65-byte signature as its eighth argument", () => {
+    const iface = new Interface(SOURCE_BATCH_REGISTRY_ABI as unknown as string[]);
+    const fn = iface.getFunction("submitMeasurement")!;
+    expect(fn.inputs.map((i) => i.type)).toEqual([
+      "bytes32", "bytes32", "address", "bytes32", "uint256", "uint256", "uint256", "bytes",
+    ]);
+    expect(fn.inputs[7].name).toBe("signature");
+  });
+});
+
 describe("ABI matches the compiled contracts", () => {
   const settlementArtifact = resolve(
     ROOT,
@@ -109,7 +120,7 @@ describe("ABI matches the compiled contracts", () => {
     for (const name of ["execute", "settled", "rewards", "claim", "sourceRegistry"]) {
       expect(settlement.getFunction(name), `settlement.${name} missing`).not.toBeNull();
     }
-    for (const name of ["submitMeasurement", "registered"]) {
+    for (const name of ["submitMeasurement", "registered", "signingDigest", "recoverContributor"]) {
       expect(registry.getFunction(name), `registry.${name} missing`).not.toBeNull();
     }
   });

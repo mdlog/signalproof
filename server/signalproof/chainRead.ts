@@ -222,6 +222,25 @@ function startBlockFor(deployBlock: string, head: number): number {
   return Math.max(0, head - MAX_LOOKBACK_BLOCKS);
 }
 
+/**
+ * Retired source registries, as `address:deployBlock` pairs.
+ *
+ * The registry was redeployed to enforce the contributor's signature on-chain. Its predecessor
+ * still holds genuine, relayer-authorised history, and the settlement contracts still hold what
+ * they paid for it, so the dashboard reads both instead of restarting from zero.
+ */
+export function parseRetiredRegistries(raw: string): Array<{ address: string; deployBlock: number }> {
+  return raw
+    .split(",")
+    .map((pair) => pair.trim())
+    .filter(Boolean)
+    .flatMap((pair) => {
+      const [address, block] = pair.split(":");
+      const deployBlock = Number.parseInt(block ?? "", 10);
+      return address && Number.isFinite(deployBlock) ? [{ address, deployBlock }] : [];
+    });
+}
+
 function isConfigured(): boolean {
   return Boolean(
     ENV.sepoliaRpcUrl &&
@@ -342,7 +361,18 @@ export async function getOnchainSnapshot(force = false): Promise<OnchainSnapshot
       }
     }
 
-    const [submittedLogs, verifiedLogs, batchVerifiedLogs, ...retiredLogs] = await Promise.all([
+    const retiredRegistries = parseRetiredRegistries(ENV.retiredRegistries);
+    const retiredSubmittedLogs = await Promise.all(
+      retiredRegistries.map((r) =>
+        scanLogs(sepolia, r.address, submittedTopic, startBlockFor(String(r.deployBlock), sepoliaHead), sepoliaHead),
+      ),
+    );
+    const sepoliaScanFrom = Math.min(
+      sepoliaFrom,
+      ...retiredRegistries.map((r) => startBlockFor(String(r.deployBlock), sepoliaHead)),
+    );
+
+    const [currentSubmittedLogs, verifiedLogs, batchVerifiedLogs, ...retiredLogs] = await Promise.all([
       scanLogs(sepolia, ENV.sourceBatchRegistryAddress, submittedTopic, sepoliaFrom, sepoliaHead),
       scanLogs(creditcoin, ENV.settlementContractAddress, verifiedTopic, cc3From, cc3Head),
       batchSettlement
@@ -363,6 +393,10 @@ export async function getOnchainSnapshot(force = false): Promise<OnchainSnapshot
           ),
       ),
     ]);
+
+    // Oldest registry first, so a root that somehow appears in two registries keeps its first
+    // appearance; the current registry comes last.
+    const submittedLogs = [...retiredSubmittedLogs.flat(), ...currentSubmittedLogs];
 
     // Destination side first, so the join below is a lookup rather than a nested scan.
     const settledByRoot = new Map<string, { txHash: string; reward: bigint }>();
@@ -466,7 +500,7 @@ export async function getOnchainSnapshot(force = false): Promise<OnchainSnapshot
         contributors: contributors.size,
         rewardsPaidWei: rewardsPaid.toString(),
       },
-      scannedFromBlock: { sepolia: sepoliaFrom, creditcoin: cc3From },
+      scannedFromBlock: { sepolia: sepoliaScanFrom, creditcoin: cc3From },
       error: null,
     };
 

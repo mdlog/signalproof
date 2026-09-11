@@ -9,12 +9,18 @@
 export const SOURCE_BATCH_REGISTRY_ABI = [
   "function relayer() external view returns (address)",
   "function owner() external view returns (address)",
-  "function submitMeasurement(bytes32 measurementRoot, bytes32 areaHash, address contributor, bytes32 sessionHash, uint256 timestamp, uint256 latencyMs, uint256 downloadMbps) external",
+  "function submitMeasurement(bytes32 measurementRoot, bytes32 areaHash, address contributor, bytes32 sessionHash, uint256 timestamp, uint256 latencyMs, uint256 downloadMbps, bytes signature) external",
   "function registered(bytes32) external view returns (bool)",
+  "function signingMessage(bytes32 measurementRoot, address contributor) external pure returns (string)",
+  "function signingDigest(bytes32 measurementRoot, address contributor) external pure returns (bytes32)",
+  "function recoverContributor(bytes32 measurementRoot, address contributor, bytes signature) external pure returns (address)",
   "event MeasurementSubmitted(bytes32 indexed measurementRoot, bytes32 indexed areaHash, address indexed contributor, bytes32 sessionHash, uint256 timestamp, uint256 latencyMs, uint256 downloadMbps)",
   "error AlreadyRegistered(bytes32 measurementRoot)",
   "error EmptyRoot()",
   "error ZeroContributor()",
+  "error NotAuthorised(address caller)",
+  "error SignatureMismatch(address recovered, address contributor)",
+  "error BadSignatureLength(uint256 length)",
 ] as const;
 
 /**

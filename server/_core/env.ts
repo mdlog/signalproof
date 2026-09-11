@@ -19,4 +19,6 @@ export const ENV = {
   sourceBatchRegistryDeployBlock: process.env.SOURCE_BATCH_REGISTRY_DEPLOY_BLOCK ?? "",
   settlementDeployBlock: process.env.SETTLEMENT_DEPLOY_BLOCK ?? "",
   batchSettlementDeployBlock: process.env.BATCH_SETTLEMENT_DEPLOY_BLOCK ?? "",
+  /** Previous source registries still worth reading: "address:deployBlock,address:deployBlock". */
+  retiredRegistries: process.env.RETIRED_REGISTRIES ?? "",
 };

@@ -160,3 +160,26 @@ describe("reconcileSnapshot", () => {
     expect(reconcileSnapshot(null, first)).toBe(first);
   });
 });
+
+/**
+ * The registry was redeployed to enforce the contributor's signature on-chain. The previous gated
+ * registry still holds real, authorised history, so the dashboard scans it as a retired source
+ * instead of restarting from zero — the same way retired settlement routes are read.
+ */
+import { parseRetiredRegistries } from "./chainRead";
+
+describe("parseRetiredRegistries", () => {
+  it("reads address:deployBlock pairs and ignores blanks", () => {
+    expect(parseRetiredRegistries(" 0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc:11658403 ,,")).toEqual([
+      { address: "0x15F3d74846a40bD67f8ce345B73ae4c400f759Dc", deployBlock: 11658403 },
+    ]);
+  });
+
+  it("drops a pair whose block is not a number", () => {
+    expect(parseRetiredRegistries("0xabc:nope")).toEqual([]);
+  });
+
+  it("returns nothing for an unset variable", () => {
+    expect(parseRetiredRegistries("")).toEqual([]);
+  });
+});

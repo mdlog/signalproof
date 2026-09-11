@@ -76,6 +76,8 @@ export async function relayMeasurement(
   // The contract stores epoch SECONDS; the gateway stores milliseconds.
   const timestampSeconds = Math.floor(event.timestamp / 1000);
 
+  // The registry recovers the contributor from this signature itself — the gateway already
+  // verified it, but the chain no longer has to take the gateway's word for it.
   const tx = await ctx.sourceRegistry.submitMeasurement(
     toBytes32(event.measurementRoot),
     toBytes32(event.areaHash),
@@ -84,6 +86,7 @@ export async function relayMeasurement(
     BigInt(timestampSeconds),
     BigInt(event.latencyMs),
     BigInt(event.downloadMbps),
+    row.signature,
   );
 
   const receipt = await tx.wait(1);
