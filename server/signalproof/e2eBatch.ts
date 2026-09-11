@@ -29,7 +29,12 @@ import {
 } from "./abi";
 import { fallbackBatchGasLimit, withGasBuffer } from "./worker";
 import { AREA_PRECISION, encodeGeohash } from "../../shared/geohash";
-import { deriveMeasurementRoot, deriveSessionHash, makeNonce } from "../../shared/measurement";
+import {
+  buildMeasurementSigningMessage,
+  deriveMeasurementRoot,
+  deriveSessionHash,
+  makeNonce,
+} from "../../shared/measurement";
 
 const ok = (m: string) => console.log(`  ✓ ${m}`);
 const step = (n: number, m: string) => console.log(`\n[${n}] ${m}`);
@@ -134,6 +139,9 @@ async function main() {
       registry.submitMeasurement(
         measurementRoot, areaHash, cc3Signer.address, sessionHash,
         BigInt(timestamp), BigInt(28 + i), 91n,
+        await cc3Signer.signMessage(
+          buildMeasurementSigningMessage({ measurementRoot, contributorAddress: cc3Signer.address }),
+        ),
         { nonce: nonce++ },
       ),
     );

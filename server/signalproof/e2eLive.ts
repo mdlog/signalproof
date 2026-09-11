@@ -24,7 +24,12 @@ import {
 } from "./abi";
 import { fallbackGasLimit, withGasBuffer } from "./worker";
 import { AREA_PRECISION, encodeGeohash, geohashCellSize } from "../../shared/geohash";
-import { deriveMeasurementRoot, deriveSessionHash, makeNonce } from "../../shared/measurement";
+import {
+  buildMeasurementSigningMessage,
+  deriveMeasurementRoot,
+  deriveSessionHash,
+  makeNonce,
+} from "../../shared/measurement";
 
 const ok = (m: string) => console.log(`  ✓ ${m}`);
 const step = (n: number, m: string) => console.log(`\n[${n}] ${m}`);
@@ -104,9 +109,14 @@ async function main() {
   const cell = geohashCellSize(areaLabel)!;
   info(`areaHash        ${areaLabel} (cell ${cell.widthM} m x ${cell.heightM} m)`);
 
+  // The contributor signs the same text a wallet would; the registry recovers it on-chain.
+  const signature = await cc3Signer.signMessage(
+    buildMeasurementSigningMessage({ measurementRoot, contributorAddress: cc3Signer.address }),
+  );
+
   const submitTx = await registry.submitMeasurement(
     measurementRoot, areaHash, cc3Signer.address, sessionHash,
-    BigInt(timestamp), 28n, 91n,
+    BigInt(timestamp), 28n, 91n, signature,
   );
   info(`tx ${submitTx.hash} — waiting for inclusion...`);
   const receipt = await submitTx.wait(1);

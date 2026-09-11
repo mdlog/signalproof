@@ -21,6 +21,7 @@ import {
 import { AREA_PRECISION, isGeohash } from "@shared/geohash";
 import { buildMeasurementSigningMessage, deriveMeasurementRoot } from "@shared/measurement";
 import { getAddress, verifyMessage } from "ethers";
+import { MEASUREMENT_RATE_LIMIT, measurementRateLimit } from "./signalproof/rateLimit";
 
 /**
  * Clock skew we tolerate on a client-supplied timestamp.
@@ -165,6 +166,32 @@ function isDuplicateKeyError(error: unknown): boolean {
   return e?.code === "ER_DUP_ENTRY" || e?.errno === 1062;
 }
 
+export type AdmissionVerdict =
+  | { ok: true }
+  | { ok: false; code: string; status: "BAD_REQUEST" | "TOO_MANY_REQUESTS"; retryAfterMs?: number };
+
+/**
+ * Everything the gateway checks before a measurement is stored or relayed, in this order:
+ * policy (freshness), integrity (root + signature), then the per-cell rate limit. Integrity runs
+ * before the limiter so a forged submission can never consume an honest contributor's slot.
+ */
+export function admitMeasurement(input: MeasurementInput, nowMs = Date.now()): AdmissionVerdict {
+  const policy = validateMeasurementPolicy(input);
+  if (!policy.ok) return { ok: false, code: policy.code, status: "BAD_REQUEST" };
+
+  const integrity = verifyMeasurementIntegrity(input);
+  if (!integrity.ok) return { ok: false, code: integrity.code, status: "BAD_REQUEST" };
+
+  const gate = measurementRateLimit.check(
+    { contributor: input.contributorAddress, areaHash: input.areaHash },
+    nowMs,
+  );
+  if (!gate.ok) {
+    return { ok: false, code: "RATE_LIMITED", status: "TOO_MANY_REQUESTS", retryAfterMs: gate.retryAfterMs };
+  }
+  return { ok: true };
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -178,11 +205,8 @@ export const appRouter = router({
 
   signalproof: router({
     submitMeasurement: publicProcedure.input(measurementInput).mutation(async ({ ctx, input }) => {
-      const policy = validateMeasurementPolicy(input);
-      if (!policy.ok) throw new TRPCError({ code: "BAD_REQUEST", message: policy.code });
-
-      const integrity = verifyMeasurementIntegrity(input);
-      if (!integrity.ok) throw new TRPCError({ code: "BAD_REQUEST", message: integrity.code });
+      const admission = admitMeasurement(input);
+      if (!admission.ok) throw new TRPCError({ code: admission.status, message: admission.code });
 
       // Inside the try: with no reachable database this lookup used to throw ECONNREFUSED from
       // outside any handler, turning every submission into a 500.
@@ -240,7 +264,10 @@ export const appRouter = router({
      * The UI reads this to decide whether to label itself prototype/fixture or live. It reports
      * only which env keys are absent — never their values.
      */
-    integrationStatus: publicProcedure.query(() => getIntegrationReadiness()),
+    integrationStatus: publicProcedure.query(() => ({
+      ...getIntegrationReadiness(),
+      rateLimit: MEASUREMENT_RATE_LIMIT,
+    })),
 
     /**
      * Dashboard read model derived straight from the deployed contracts.

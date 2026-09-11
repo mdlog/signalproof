@@ -82,6 +82,23 @@ function toneFor(quality: number) {
   return { status: "attention", color: "#F06A59" };
 }
 
+/**
+ * Gateway rejection codes, in the interface's own words. Anything unknown is shown as sent, cut to
+ * a length that still fits the panel.
+ */
+function describeSubmitError(message: string): string {
+  const copy: Record<string, string> = {
+    RATE_LIMITED:
+      "Rate limited: this address has already recorded 3 measurements in this cell in the last 10 minutes. Try again later, or from another area.",
+    STALE_MEASUREMENT: "The measurement is older than 15 minutes. Run the test again.",
+    TIMESTAMP_IN_FUTURE: "Your device clock is ahead of the gateway by more than a minute.",
+    DUPLICATE_MEASUREMENT_ROOT: "This exact measurement was already submitted.",
+    SIGNATURE_MISMATCH: "The signature does not match the connected wallet. Reconnect and sign again.",
+    MEASUREMENT_ROOT_MISMATCH: "The payload changed after it was signed. Run the test again.",
+  };
+  return copy[message] ?? message.slice(0, 200);
+}
+
 function shortHash(hash: string | null): string {
   if (!hash) return "—";
   return `${hash.slice(0, 6)}…${hash.slice(-4)}`;
@@ -396,7 +413,7 @@ export default function Home() {
         error instanceof LocationError
           ? error.message
           : error instanceof Error
-            ? error.message.slice(0, 200)
+            ? describeSubmitError(error.message)
             : "The measurement could not be completed.",
       );
     }

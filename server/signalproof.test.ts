@@ -1,6 +1,7 @@
 import { Wallet, getBytes, isHexString } from "ethers";
-import { describe, expect, it } from "vitest";
-import { validateMeasurementPolicy, verifyMeasurementIntegrity, type MeasurementInput } from "./routers";
+import { beforeEach, describe, expect, it } from "vitest";
+import { measurementRateLimit } from "./signalproof/rateLimit";
+import { validateMeasurementPolicy, verifyMeasurementIntegrity, type MeasurementInput, admitMeasurement } from "./routers";
 import { buildSourceMeasurementEvent, getIntegrationReadiness } from "./signalproof/worker";
 import {
   buildMeasurementSigningMessage,
@@ -322,5 +323,44 @@ describe("signature encoding, as browsers actually produce it", () => {
     expect(() =>
       verifyMeasurementIntegrity({ ...m, contributorAddress: badChecksum }),
     ).not.toThrow();
+  });
+});
+
+describe("admission: policy, integrity, then rate limit", () => {
+  beforeEach(() => measurementRateLimit.reset());
+
+  it("admits three measurements per contributor per cell, then refuses with RATE_LIMITED", async () => {
+    for (let i = 0; i < 3; i++) {
+      const m = await validMeasurement({ nonce: `nonce-rate-${i}-aaaa` });
+      expect(admitMeasurement(m, 1_000 + i)).toEqual({ ok: true });
+    }
+    const fourth = await validMeasurement({ nonce: "nonce-rate-3-aaaa" });
+    const verdict = admitMeasurement(fourth, 2_000);
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) {
+      expect(verdict.code).toBe("RATE_LIMITED");
+      expect(verdict.status).toBe("TOO_MANY_REQUESTS");
+      expect(verdict.retryAfterMs).toBeGreaterThan(0);
+    }
+  });
+
+  it("does not let a forged submission consume a slot", async () => {
+    const forged = await validMeasurement({ nonce: "nonce-forged-aaaa", latencyMs: 1 });
+    // latency edited after signing: the root no longer matches, so it is refused for integrity
+    const tampered = { ...forged, latencyMs: 2 };
+    for (let i = 0; i < 5; i++) {
+      const verdict = admitMeasurement(tampered, 1_000 + i);
+      expect(verdict.ok).toBe(false);
+      if (!verdict.ok) expect(verdict.code).toBe("MEASUREMENT_ROOT_MISMATCH");
+    }
+    const honest = await validMeasurement({ nonce: "nonce-honest-aaaa" });
+    expect(admitMeasurement(honest, 2_000)).toEqual({ ok: true });
+  });
+
+  it("refuses a stale measurement before looking at the rate limit", async () => {
+    const stale = await validMeasurement({ timestampMs: String(Date.now() - 3_600_000) });
+    const verdict = admitMeasurement(stale);
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.code).toBe("STALE_MEASUREMENT");
   });
 });
