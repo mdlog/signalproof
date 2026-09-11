@@ -98,6 +98,44 @@ export async function resolveChainKey(
  */
 export const SEPOLIA_SENDER_PROVIDER_OPTIONS = { staticNetwork: true, batchMaxCount: 1 } as const;
 
+export type ReadContext = {
+  sepolia: JsonRpcProvider;
+  creditcoin: JsonRpcProvider;
+  chainInfoProvider: InstanceType<typeof chainInfo.PrecompileChainInfoProvider>;
+  proofBuilder: InstanceType<typeof proofProvider.service.ProofBuilder>;
+  chainKey: number;
+};
+
+let cachedRead: ReadContext | null = null;
+
+/**
+ * Everything needed to READ the Attestcoin path — resolve the chain key, watch attestation, fetch
+ * a proof — with no private key anywhere. This is what `pnpm smoke` and the dashboard's proof
+ * inspector use; a keyless clone gets the full inspector.
+ */
+export async function getReadContext(): Promise<ReadContext> {
+  if (cachedRead) return cachedRead;
+  if (!ENV.sepoliaRpcUrl || !ENV.creditcoinRpcUrl || !ENV.attestcoinProofServiceUrl) {
+    throw new Error("SEPOLIA_RPC_URL, CREDITCOIN_RPC_URL and ATTESTCOIN_PROOF_SERVICE_URL are required to read proofs");
+  }
+  const sepolia = new JsonRpcProvider(ENV.sepoliaRpcUrl, undefined, SEPOLIA_SENDER_PROVIDER_OPTIONS);
+  const creditcoin = new JsonRpcProvider(ENV.creditcoinRpcUrl, undefined, { staticNetwork: true });
+  const chainInfoProvider = new chainInfo.PrecompileChainInfoProvider(creditcoin);
+  const chainKey = await resolveChainKey(chainInfoProvider);
+  cachedRead = {
+    sepolia,
+    creditcoin,
+    chainInfoProvider,
+    proofBuilder: new proofProvider.service.ProofBuilder(
+      chainKey,
+      ENV.attestcoinProofServiceUrl,
+      PROOF_BUILDER_TIMEOUT_MS,
+    ),
+    chainKey,
+  };
+  return cachedRead;
+}
+
 export async function getChainContext(): Promise<ChainContext> {
   if (cached) return cached;
 
@@ -228,4 +266,5 @@ async function resolveSettlementRoutes(
 /** Reset the memoised context. Tests only. */
 export function __resetChainContext(): void {
   cached = null;
+  cachedRead = null;
 }

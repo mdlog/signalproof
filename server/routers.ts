@@ -22,6 +22,7 @@ import { AREA_PRECISION, isGeohash } from "@shared/geohash";
 import { buildMeasurementSigningMessage, deriveMeasurementRoot } from "@shared/measurement";
 import { getAddress, verifyMessage } from "ethers";
 import { MEASUREMENT_RATE_LIMIT, measurementRateLimit } from "./signalproof/rateLimit";
+import { getProofSummary } from "./signalproof/proofRead";
 
 /**
  * Clock skew we tolerate on a client-supplied timestamp.
@@ -289,6 +290,14 @@ export const appRouter = router({
     rewardsFor: publicProcedure
       .input(z.object({ address: z.string().regex(/^0x[0-9a-fA-F]{40}$/) }))
       .query(({ input }) => getRewardsFor(input.address)),
+
+    /**
+     * The live Attestcoin proof for one source transaction, read with no key: what the
+     * BlockProver precompile is asked to verify, in the terms the dashboard shows.
+     */
+    proofFor: publicProcedure
+      .input(z.object({ sourceTxHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/) }))
+      .query(({ input }) => getProofSummary(input.sourceTxHash)),
 
     onchain: publicProcedure
       .input(z.object({ force: z.boolean().default(false) }).optional())

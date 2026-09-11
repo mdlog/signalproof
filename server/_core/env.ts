@@ -21,4 +21,6 @@ export const ENV = {
   batchSettlementDeployBlock: process.env.BATCH_SETTLEMENT_DEPLOY_BLOCK ?? "",
   /** Previous source registries still worth reading: "address:deployBlock,address:deployBlock". */
   retiredRegistries: process.env.RETIRED_REGISTRIES ?? "",
+  /** "full" (default) relays and settles; "relay-only" relays to Sepolia and leaves settlement to wallets. */
+  proofWorkerMode: process.env.PROOF_WORKER_MODE ?? "",
 };

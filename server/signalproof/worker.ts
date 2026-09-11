@@ -78,6 +78,18 @@ const ENV_LOOKUP: Record<ChainEnvKey, () => string> = {
   ATTESTCOIN_PROOF_SERVICE_URL: () => ENV.attestcoinProofServiceUrl,
 };
 
+export type ProofWorkerMode = "full" | "relay-only";
+
+/** Anything but an explicit relay-only is full: a typo must never silently stop settlement. */
+export function parseProofWorkerMode(raw: string): ProofWorkerMode {
+  return raw.trim().toLowerCase() === "relay-only" ? "relay-only" : "full";
+}
+
+/** In relay-only mode the worker still carries measurements to Sepolia but never settles them. */
+export function shouldAutoSettle(mode: ProofWorkerMode): boolean {
+  return mode === "full";
+}
+
 export type IntegrationReadiness = {
   /** Env keys that are absent or blank. */
   missing: ChainEnvKey[];
@@ -90,6 +102,8 @@ export type IntegrationReadiness = {
    * reads real settlements and nothing can be submitted. A clone of `.env.example` lands here.
    */
   readOnly: boolean;
+  /** Whether the worker settles on its own or leaves execute() to contributors' wallets. */
+  settleMode: ProofWorkerMode;
 };
 
 /**
@@ -100,11 +114,17 @@ export type IntegrationReadiness = {
  * claims a measurement was verified when no proof was ever produced.
  */
 export function getIntegrationReadiness(): IntegrationReadiness {
-  return readinessFrom(REQUIRED_CHAIN_ENV.filter((key) => !ENV_LOOKUP[key]().trim()));
+  return readinessFrom(
+    REQUIRED_CHAIN_ENV.filter((key) => !ENV_LOOKUP[key]().trim()),
+    parseProofWorkerMode(ENV.proofWorkerMode),
+  );
 }
 
 /** The readiness decision itself, separated from the environment so it can be tested directly. */
-export function readinessFrom(missing: ChainEnvKey[]): IntegrationReadiness {
+export function readinessFrom(
+  missing: ChainEnvKey[],
+  settleMode: ProofWorkerMode = "full",
+): IntegrationReadiness {
   const has = (key: ChainEnvKey) => !missing.includes(key);
 
   const relayerReady =
@@ -123,6 +143,7 @@ export function readinessFrom(missing: ChainEnvKey[]): IntegrationReadiness {
     relayerReady,
     proofWorkerReady: relayerReady && missing.length === 0,
     readOnly: readable && !relayerReady,
+    settleMode,
   };
 }
 

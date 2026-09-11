@@ -27,7 +27,11 @@ import {
   isPermanentFailure,
   toRejectionCode,
   withGasBuffer,
+  parseProofWorkerMode,
+  shouldAutoSettle,
 } from "./worker";
+import { buildExecuteArgs } from "./proofView";
+import { ENV } from "../_core/env";
 
 export const TICK_INTERVAL_MS = 15_000;
 const BATCH_SIZE = 10;
@@ -415,19 +419,9 @@ export async function settleMeasurement(
 ): Promise<string> {
   const proofData = prefetched ?? (await fetchProof(ctx, row));
 
-  const siblings = proofData.merkleProof.siblings;
-  const continuityRoots = proofData.continuityProof.roots ?? [];
-
-  const args = [
-    0, // action — single-purpose ASC, only one dispatch path
-    proofData.chainKey,
-    proofData.headerNumber,
-    proofData.txBytes,
-    proofData.merkleProof.root,
-    siblings,
-    proofData.continuityProof.lowerEndpointDigest,
-    continuityRoots,
-  ] as const;
+  // The same tuple the dashboard's proof inspector shows and the self-settle button sends.
+  const args = buildExecuteArgs(proofData);
+  const continuityRoots = args[7];
 
   // estimateGas fails against precompiles even when the call would succeed — pallet-evm does not
   // propagate revert reasons in estimation mode. The manual fallback is required, not defensive.
@@ -501,7 +495,10 @@ export async function tick(): Promise<{ relayed: number; settled: number; recove
   }
 
   const relayed = await processSubmitted(ctx);
-  const settled = await processAwaitingAttestation(ctx);
+  // Relay-only: measurements reach Sepolia and wait there; execute() is the contributor's to send.
+  const settled = shouldAutoSettle(parseProofWorkerMode(ENV.proofWorkerMode))
+    ? await processAwaitingAttestation(ctx)
+    : 0;
   return { relayed, settled, recovered };
 }
 
@@ -523,6 +520,12 @@ export function startProofWorker(): boolean {
   }
 
   if (timer) return true;
+
+  if (readiness.settleMode === "relay-only") {
+    console.log(
+      "[SignalProof] PROOF_WORKER_MODE=relay-only — measurements are relayed to Sepolia but not settled; contributors settle from their own wallet.",
+    );
+  }
 
   timer = setInterval(() => {
     if (ticking) return; // never overlap ticks

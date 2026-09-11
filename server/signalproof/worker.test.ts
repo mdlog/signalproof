@@ -11,6 +11,8 @@ import {
   getIntegrationReadiness,
   hasExhaustedAttempts,
   readinessFrom,
+  shouldAutoSettle,
+  parseProofWorkerMode,
   isPermanentFailure,
   toRejectionCode,
   withGasBuffer,
@@ -99,6 +101,23 @@ describe("getIntegrationReadiness", () => {
     const readiness = readinessFrom([]);
     expect(readiness.readOnly).toBe(false);
     expect(readiness.proofWorkerReady).toBe(true);
+  });
+
+  // PROOF_WORKER_MODE=relay-only keeps relaying to Sepolia but never settles, so the only path to
+  // a reward is a contributor sending execute() from their own wallet — the demo of permissionless
+  // settlement. The default is unchanged.
+  it("reports the settle mode and whether the worker settles on its own", () => {
+    expect(shouldAutoSettle("full")).toBe(true);
+    expect(shouldAutoSettle("relay-only")).toBe(false);
+    expect(readinessFrom([], "relay-only").settleMode).toBe("relay-only");
+    expect(readinessFrom([]).settleMode).toBe("full");
+  });
+
+  it("treats an unknown mode as full so a typo cannot silently stop settlement", () => {
+    expect(parseProofWorkerMode("relay-only")).toBe("relay-only");
+    expect(parseProofWorkerMode("RELAY-ONLY")).toBe("relay-only");
+    expect(parseProofWorkerMode("")).toBe("full");
+    expect(parseProofWorkerMode("manual")).toBe("full");
   });
 });
 
