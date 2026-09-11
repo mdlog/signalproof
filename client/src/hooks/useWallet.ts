@@ -272,6 +272,47 @@ export function useWallet() {
   );
 
   /**
+   * Send a settlement — `execute()` on the settlement contract — from the user's own wallet.
+   *
+   * `execute()` is permissionless by design: anyone holding a valid proof may settle it, and all
+   * authorisation lives in the contract's checks. This is that property made visible. The server
+   * built the calldata from the live Attestcoin proof; the wallet only signs and pays CC3 gas.
+   */
+  const sendSettlement = useCallback(
+    async (
+      settlementAddress: string,
+      calldata: string,
+      gasLimit: string,
+    ): Promise<{ ok: boolean; txHash?: string; error?: string }> => {
+      const provider = providerRef.current ?? (await discover());
+      if (!provider) return { ok: false, error: "No wallet available." };
+      if (!state.address) return { ok: false, error: "Connect a wallet first." };
+
+      try {
+        const chainIdHex = (await provider.request({ method: "eth_chainId" })) as string;
+        if (Number.parseInt(chainIdHex, 16) !== CC3_TESTNET_CHAIN_ID) {
+          return { ok: false, error: "Switch to Creditcoin CC3 Testnet before settling." };
+        }
+        const txHash = (await provider.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: state.address,
+              to: settlementAddress,
+              data: calldata,
+              gas: "0x" + BigInt(gasLimit).toString(16),
+            },
+          ],
+        })) as string;
+        return { ok: true, txHash };
+      } catch (err) {
+        return { ok: false, error: describeError(err) };
+      }
+    },
+    [discover, state.address],
+  );
+
+  /**
    * Sign a measurement root with the contributor's key.
    *
    * Free, gasless, and off-chain — but it is what turns reward attribution into a claim BY the
@@ -314,7 +355,7 @@ export function useWallet() {
     [discover, state.address],
   );
 
-  return { ...state, connect, disconnect, switchToCreditcoin, claimReward, signMeasurement };
+  return { ...state, connect, disconnect, switchToCreditcoin, claimReward, sendSettlement, signMeasurement };
 }
 
 /** Names the chains a user is plausibly on, so the banner can say more than a bare number. */

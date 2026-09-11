@@ -8,7 +8,11 @@
  */
 
 import type { proofProvider } from "@gluwa/usc-sdk";
+import { Interface } from "ethers";
+import { SIGNAL_PROOF_SETTLEMENT_ABI } from "./abi";
 import { fallbackGasLimit } from "./worker";
+
+const settlementInterface = new Interface(SIGNAL_PROOF_SETTLEMENT_ABI as unknown as string[]);
 
 /**
  * Gas limit handed to a browser wallet for a self-settle.
@@ -70,8 +74,11 @@ export type ProofSummary = {
   merkle: { root: string; siblingCount: number; siblings: MerkleSibling[] };
   continuity: { lowerEndpointDigest: string; rootCount: number; roots: string[] };
   precompile: string;
-  /** What `execute()` is called with — numbers as decimal strings so JSON and wallets agree. */
-  execute: { selector: "0xc6339bf7"; args: unknown[]; gasLimit: string };
+  /**
+   * What `execute()` is called with — numbers as decimal strings so JSON and wallets agree — and
+   * the ABI-encoded calldata, so a wallet can send it exactly as the relayer would.
+   */
+  execute: { selector: "0xc6339bf7"; args: unknown[]; calldata: string; gasLimit: string };
   cached: boolean;
   generatedAt: string;
 };
@@ -99,6 +106,7 @@ export function summarizeProof(proof: ProofData, sourceTxHash: string): ProofSum
     execute: {
       selector: "0xc6339bf7",
       args: [args[0], String(args[1]), String(args[2]), args[3], args[4], args[5], args[6], args[7]],
+      calldata: settlementInterface.encodeFunctionData("execute", [...args]),
       gasLimit: selfSettleGasLimit(roots.length).toString(),
     },
     cached: proof.cached,

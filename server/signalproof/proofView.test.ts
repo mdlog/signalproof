@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { Interface } from "ethers";
+import { SIGNAL_PROOF_SETTLEMENT_ABI } from "./abi";
 import { BLOCK_PROVER_PRECOMPILE, SELF_SETTLE_GAS_LIMIT, buildExecuteArgs, selfSettleGasLimit, summarizeProof, type ProofData } from "./proofView";
 
 /**
@@ -75,6 +77,17 @@ describe("summarizeProof", () => {
     expect(view.continuity.lowerEndpointDigest).toBe("0x" + "cd".repeat(32));
     expect(view.precompile).toBe(BLOCK_PROVER_PRECOMPILE);
     expect(view.execute.gasLimit).toBe(SELF_SETTLE_GAS_LIMIT.toString());
+  });
+
+  it("encodes calldata a wallet can send as-is, matching the execute() selector and arguments", () => {
+    const view = summarizeProof(proof, proof.txHash);
+    expect(view.execute.calldata.startsWith("0xc6339bf7")).toBe(true);
+    const iface = new Interface(SIGNAL_PROOF_SETTLEMENT_ABI as unknown as string[]);
+    const decoded = iface.decodeFunctionData("execute", view.execute.calldata);
+    expect(Number(decoded[1])).toBe(1);
+    expect(Number(decoded[2])).toBe(11_681_452);
+    expect(decoded[3]).toBe(proof.txBytes);
+    expect(decoded[7].length).toBe(3);
   });
 
   it("serialises the execute arguments so a browser can send them without bigint surprises", () => {
