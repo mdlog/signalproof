@@ -4,11 +4,11 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {SourceBatchRegistry} from "../src/SourceBatchRegistry.sol";
+import {SignedSubmit} from "./SignedSubmit.sol";
 import {SignalProofBatchSettlement} from "../src/SignalProofBatchSettlement.sol";
 import {SignalProofSettlement} from "../src/SignalProofSettlement.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {MockNativeQueryVerifier} from "./MockNativeQueryVerifier.sol";
 import {EvmTxFixture} from "./EvmTxFixture.sol";
 
@@ -21,13 +21,13 @@ import {EvmTxFixture} from "./EvmTxFixture.sol";
 ///
 /// They are kept, with their assertions inverted, because the exploit path is the specification of
 /// what must stay closed. If the gate is ever removed, these fail first.
-contract AdvUnlimitedMint is Test {
+contract AdvUnlimitedMint is SignedSubmit {
     address constant VERIFIER_PRECOMPILE = 0x0000000000000000000000000000000000000FD2;
-    address constant ATTACKER = address(0xBAD);
+    address ATTACKER;
 
-    uint256 constant REWARD = 0.001 ether;   // deploy.sh:42
-    uint256 constant MAX_AGE = 24 hours;     // deploy.sh:43
-    uint256 constant POOL   = 0.05 ether;    // deploy.sh:44
+    uint256 constant REWARD = 0.001 ether; // deploy.sh:42
+    uint256 constant MAX_AGE = 24 hours; // deploy.sh:43
+    uint256 constant POOL = 0.05 ether; // deploy.sh:44
 
     SourceBatchRegistry registry;
     SignalProofBatchSettlement batch;
@@ -41,6 +41,7 @@ contract AdvUnlimitedMint is Test {
         verifier.setShouldVerify(true);
 
         registry = new SourceBatchRegistry(address(this));
+        ATTACKER = _wallet(0xBAD);
         batch = new SignalProofBatchSettlement(address(registry), REWARD, MAX_AGE);
         single = new SignalProofSettlement(address(registry), REWARD, MAX_AGE);
         vm.deal(address(batch), POOL);
@@ -50,7 +51,9 @@ contract AdvUnlimitedMint is Test {
 
     function _emit(bytes32 root, address contributor, uint256 ts) internal returns (bytes memory) {
         vm.recordLogs();
-        registry.submitMeasurement(root, keccak256("zone"), contributor, keccak256("s"), ts, 28, 91);
+        registry.submitMeasurement(
+            root, keccak256("zone"), contributor, keccak256("s"), ts, 28, 91, _sig(registry, root, contributor)
+        );
         Vm.Log[] memory e = vm.getRecordedLogs();
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
         logs[0] = EvmV1Decoder.LogEntryTuple({address_: e[0].emitter, topics: e[0].topics, data: e[0].data});
@@ -61,8 +64,7 @@ contract AdvUnlimitedMint is Test {
         p = new INativeQueryVerifier.MerkleProof[](n);
         for (uint256 i; i < n; ++i) {
             p[i] = INativeQueryVerifier.MerkleProof({
-                root: keccak256(abi.encode("m", i)),
-                siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+                root: keccak256(abi.encode("m", i)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             });
         }
     }
@@ -80,13 +82,11 @@ contract AdvUnlimitedMint is Test {
     /// inclusion proof. Nothing downstream can tell them apart. The only place the attack is
     /// distinguishable is the moment of admission, which is why the check lives there.
     function test_attackerCannotAssembleABatchOfSelfNamedMeasurements() public {
+        bytes32 junk = keccak256("junk-0");
+        bytes memory sig = _sig(registry, junk, ATTACKER);
         vm.prank(ATTACKER);
-        vm.expectRevert(
-            abi.encodeWithSelector(SourceBatchRegistry.NotAuthorised.selector, ATTACKER)
-        );
-        registry.submitMeasurement(
-            keccak256("junk-0"), keccak256("zone"), ATTACKER, keccak256("s"), block.timestamp, 28, 91
-        );
+        vm.expectRevert(abi.encodeWithSelector(SourceBatchRegistry.NotAuthorised.selector, ATTACKER));
+        registry.submitMeasurement(junk, keccak256("zone"), ATTACKER, keccak256("s"), block.timestamp, 28, 91, sig);
 
         assertEq(batch.rewards(ATTACKER), 0, "nothing accrued");
         assertEq(address(batch).balance, POOL, "pool untouched");
@@ -98,14 +98,11 @@ contract AdvUnlimitedMint is Test {
     /// argument for fixing it upstream rather than adding a payee allowlist to each contract.
     function test_theSingleProofSiblingIsCoveredByTheSameGate() public {
         for (uint256 i; i < 5; ++i) {
+            bytes32 solo = keccak256(abi.encode("solo", i));
+            bytes memory sig = _sig(registry, solo, ATTACKER);
             vm.prank(ATTACKER);
-            vm.expectRevert(
-                abi.encodeWithSelector(SourceBatchRegistry.NotAuthorised.selector, ATTACKER)
-            );
-            registry.submitMeasurement(
-                keccak256(abi.encode("solo", i)), keccak256("zone"), ATTACKER,
-                keccak256("s"), block.timestamp, 28, 91
-            );
+            vm.expectRevert(abi.encodeWithSelector(SourceBatchRegistry.NotAuthorised.selector, ATTACKER));
+            registry.submitMeasurement(solo, keccak256("zone"), ATTACKER, keccak256("s"), block.timestamp, 28, 91, sig);
         }
         assertEq(single.rewards(ATTACKER), 0, "sibling accrued nothing");
         assertEq(address(single).balance, POOL, "sibling pool untouched");

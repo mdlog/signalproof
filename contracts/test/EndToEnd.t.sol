@@ -4,10 +4,10 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {SourceBatchRegistry} from "../src/SourceBatchRegistry.sol";
+import {SignedSubmit} from "./SignedSubmit.sol";
 import {SignalProofSettlement} from "../src/SignalProofSettlement.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {MockNativeQueryVerifier} from "./MockNativeQueryVerifier.sol";
 import {EvmTxFixture} from "./EvmTxFixture.sol";
 
@@ -18,10 +18,10 @@ import {EvmTxFixture} from "./EvmTxFixture.sol";
 /// txBytes, and feeds it to the real SignalProofSettlement. If the two contracts ever disagree
 /// about topic layout or data encoding, this is the test that notices — the hand-written fixtures
 /// would happily keep agreeing with themselves.
-contract EndToEndTest is Test {
+contract EndToEndTest is SignedSubmit {
     address constant VERIFIER_PRECOMPILE = 0x0000000000000000000000000000000000000FD2;
-    address constant CONTRIBUTOR = address(0xC0FFEE);
-    address constant OTHER_CONTRIBUTOR = address(0xDECAF);
+    address CONTRIBUTOR;
+    address OTHER_CONTRIBUTOR;
 
     uint256 constant REWARD = 0.001 ether;
     uint256 constant MAX_AGE = 24 hours;
@@ -37,6 +37,8 @@ contract EndToEndTest is Test {
         verifier.setShouldVerify(true);
 
         registry = new SourceBatchRegistry(address(this));
+        CONTRIBUTOR = _wallet(0xC0FFEE);
+        OTHER_CONTRIBUTOR = _wallet(0xDECAF);
         settlement = new SignalProofSettlement(address(registry), REWARD, MAX_AGE);
         vm.deal(address(settlement), 1 ether);
 
@@ -46,23 +48,21 @@ contract EndToEndTest is Test {
     receive() external payable {}
 
     /// @dev Emit through the real registry and return prover-shaped txBytes for what it emitted.
-    function _captureRealEmission(
-        bytes32 root,
-        bytes32 area,
-        address contributor,
-        uint256 timestamp
-    ) internal returns (bytes memory) {
+    function _captureRealEmission(bytes32 root, bytes32 area, address contributor, uint256 timestamp)
+        internal
+        returns (bytes memory)
+    {
         vm.recordLogs();
-        registry.submitMeasurement(root, area, contributor, keccak256("session"), timestamp, 28, 91);
+        registry.submitMeasurement(
+            root, area, contributor, keccak256("session"), timestamp, 28, 91, _sig(registry, root, contributor)
+        );
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
         assertEq(entries.length, 1, "registry should emit exactly one event");
 
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
         logs[0] = EvmV1Decoder.LogEntryTuple({
-            address_: entries[0].emitter,
-            topics: entries[0].topics,
-            data: entries[0].data
+            address_: entries[0].emitter, topics: entries[0].topics, data: entries[0].data
         });
 
         return EvmTxFixture.buildType2(1, logs);
@@ -115,8 +115,7 @@ contract EndToEndTest is Test {
         bytes32 root = keccak256("e2e-topics");
         bytes32 area = keccak256("zone-42");
 
-        bytes memory txBytes =
-            _captureRealEmission(root, area, OTHER_CONTRIBUTOR, block.timestamp - 60);
+        bytes memory txBytes = _captureRealEmission(root, area, OTHER_CONTRIBUTOR, block.timestamp - 60);
         verifier.setTxIndex(2);
 
         vm.recordLogs();
@@ -125,17 +124,12 @@ contract EndToEndTest is Test {
 
         bool found;
         for (uint256 i; i < entries.length; ++i) {
-            if (
-                entries[i].topics[0]
-                    == keccak256("MeasurementVerified(bytes32,bytes32,address,uint256,bytes32)")
-            ) {
+            if (entries[i].topics[0] == keccak256("MeasurementVerified(bytes32,bytes32,address,uint256,bytes32)")) {
                 // Values must survive the round trip through the encoder unchanged.
                 assertEq(entries[i].topics[1], root, "measurementRoot round-tripped");
                 assertEq(entries[i].topics[2], area, "areaHash round-tripped");
                 assertEq(
-                    address(uint160(uint256(entries[i].topics[3]))),
-                    OTHER_CONTRIBUTOR,
-                    "contributor round-tripped"
+                    address(uint160(uint256(entries[i].topics[3]))), OTHER_CONTRIBUTOR, "contributor round-tripped"
                 );
                 found = true;
             }
@@ -145,14 +139,12 @@ contract EndToEndTest is Test {
 
     /// @notice Several measurements from several contributors settle independently.
     function test_multipleContributorsAccrueSeparately() public {
-        bytes memory txA =
-            _captureRealEmission(keccak256("e2e-a"), keccak256("z1"), CONTRIBUTOR, block.timestamp - 60);
+        bytes memory txA = _captureRealEmission(keccak256("e2e-a"), keccak256("z1"), CONTRIBUTOR, block.timestamp - 60);
         verifier.setTxIndex(10);
         _execute(txA, 11_654_810);
 
-        bytes memory txB = _captureRealEmission(
-            keccak256("e2e-b"), keccak256("z2"), OTHER_CONTRIBUTOR, block.timestamp - 60
-        );
+        bytes memory txB =
+            _captureRealEmission(keccak256("e2e-b"), keccak256("z2"), OTHER_CONTRIBUTOR, block.timestamp - 60);
         verifier.setTxIndex(11);
         _execute(txB, 11_654_811);
 
@@ -171,24 +163,27 @@ contract EndToEndTest is Test {
 
         vm.recordLogs();
         impostorRegistry.submitMeasurement(
-            root, keccak256("z9"), CONTRIBUTOR, keccak256("session"), block.timestamp - 60, 1, 999
+            root,
+            keccak256("z9"),
+            CONTRIBUTOR,
+            keccak256("session"),
+            block.timestamp - 60,
+            1,
+            999,
+            _sig(impostorRegistry, root, CONTRIBUTOR)
         );
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
         logs[0] = EvmV1Decoder.LogEntryTuple({
-            address_: entries[0].emitter,
-            topics: entries[0].topics,
-            data: entries[0].data
+            address_: entries[0].emitter, topics: entries[0].topics, data: entries[0].data
         });
         bytes memory forgedTx = EvmTxFixture.buildType2(1, logs);
 
         verifier.setTxIndex(20);
         vm.expectRevert(
             abi.encodeWithSelector(
-                SignalProofSettlement.WrongEmitter.selector,
-                address(impostorRegistry),
-                address(registry)
+                SignalProofSettlement.WrongEmitter.selector, address(impostorRegistry), address(registry)
             )
         );
         _execute(forgedTx, 11_654_820);
@@ -202,19 +197,17 @@ contract EndToEndTest is Test {
         bytes32 root = keccak256("e2e-dup");
         _captureRealEmission(root, keccak256("z3"), CONTRIBUTOR, block.timestamp - 60);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(SourceBatchRegistry.AlreadyRegistered.selector, root)
-        );
+        bytes memory sig = _sig(registry, root, CONTRIBUTOR);
+        vm.expectRevert(abi.encodeWithSelector(SourceBatchRegistry.AlreadyRegistered.selector, root));
         registry.submitMeasurement(
-            root, keccak256("z3"), CONTRIBUTOR, keccak256("session"), block.timestamp, 28, 91
+            root, keccak256("z3"), CONTRIBUTOR, keccak256("session"), block.timestamp, 28, 91, sig
         );
     }
 
     /// @notice Replaying the same proof is refused by ASCBase before app logic runs.
     function test_replayingTheSameProofIsRefused() public {
-        bytes memory txBytes = _captureRealEmission(
-            keccak256("e2e-replay"), keccak256("z4"), CONTRIBUTOR, block.timestamp - 60
-        );
+        bytes memory txBytes =
+            _captureRealEmission(keccak256("e2e-replay"), keccak256("z4"), CONTRIBUTOR, block.timestamp - 60);
         verifier.setTxIndex(30);
         _execute(txBytes, 11_654_830);
 

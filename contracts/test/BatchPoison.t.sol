@@ -4,10 +4,10 @@ pragma solidity ^0.8.30;
 import {Test, console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {SourceBatchRegistry} from "../src/SourceBatchRegistry.sol";
+import {SignedSubmit} from "./SignedSubmit.sol";
 import {SignalProofBatchSettlement} from "../src/SignalProofBatchSettlement.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {MockNativeQueryVerifier} from "./MockNativeQueryVerifier.sol";
 import {EvmTxFixture} from "./EvmTxFixture.sol";
 
@@ -25,19 +25,17 @@ contract PoisonEmitter {
         uint256 downloadMbps
     );
 
-    function poison(SourceBatchRegistry registry, bytes32 root, address contributor, uint256 ts)
+    function poison(SourceBatchRegistry registry, bytes32 root, address contributor, uint256 ts, bytes calldata sig)
         external
     {
-        registry.submitMeasurement(root, keccak256("zone"), contributor, keccak256("s"), ts, 28, 91);
-        emit MeasurementSubmitted(
-            keccak256("dust"), keccak256("zone"), address(this), keccak256("s"), ts, 1, 1
-        );
+        registry.submitMeasurement(root, keccak256("zone"), contributor, keccak256("s"), ts, 28, 91, sig);
+        emit MeasurementSubmitted(keccak256("dust"), keccak256("zone"), address(this), keccak256("s"), ts, 1, 1);
     }
 }
 
-contract BatchPoisonTest is Test {
+contract BatchPoisonTest is SignedSubmit {
     address constant VERIFIER_PRECOMPILE = 0x0000000000000000000000000000000000000FD2;
-    address constant CONTRIBUTOR = address(0xC0FFEE);
+    address CONTRIBUTOR;
     uint256 constant REWARD = 0.001 ether;
     uint256 constant MAX_AGE = 24 hours;
 
@@ -52,6 +50,7 @@ contract BatchPoisonTest is Test {
         verifier = MockNativeQueryVerifier(VERIFIER_PRECOMPILE);
         verifier.setShouldVerify(true);
         registry = new SourceBatchRegistry(address(this));
+        CONTRIBUTOR = _wallet(0xC0FFEE);
         poisoner = new PoisonEmitter();
         batch = new SignalProofBatchSettlement(address(registry), REWARD, MAX_AGE);
         vm.deal(address(batch), 10 ether);
@@ -62,9 +61,7 @@ contract BatchPoisonTest is Test {
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](entries.length);
         for (uint256 i; i < entries.length; ++i) {
             logs[i] = EvmV1Decoder.LogEntryTuple({
-                address_: entries[i].emitter,
-                topics: entries[i].topics,
-                data: entries[i].data
+                address_: entries[i].emitter, topics: entries[i].topics, data: entries[i].data
             });
         }
         return EvmTxFixture.buildType2(1, logs);
@@ -73,20 +70,25 @@ contract BatchPoisonTest is Test {
     function _honest(bytes32 root) internal returns (bytes memory) {
         vm.recordLogs();
         registry.submitMeasurement(
-            root, keccak256("zone"), CONTRIBUTOR, keccak256("s"), block.timestamp - 60, 28, 91
+            root,
+            keccak256("zone"),
+            CONTRIBUTOR,
+            keccak256("s"),
+            block.timestamp - 60,
+            28,
+            91,
+            _sig(registry, root, CONTRIBUTOR)
         );
         return _wrap(vm.getRecordedLogs());
     }
 
     function _run(bytes[] memory txs) internal returns (uint256) {
         uint64[] memory heights = new uint64[](txs.length);
-        INativeQueryVerifier.MerkleProof[] memory proofs =
-            new INativeQueryVerifier.MerkleProof[](txs.length);
+        INativeQueryVerifier.MerkleProof[] memory proofs = new INativeQueryVerifier.MerkleProof[](txs.length);
         for (uint256 i; i < txs.length; ++i) {
             heights[i] = uint64(11_657_000 + i);
             proofs[i] = INativeQueryVerifier.MerkleProof({
-                root: keccak256(abi.encode(i)),
-                siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+                root: keccak256(abi.encode(i)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             });
         }
         bytes32[] memory roots = new bytes32[](1);
@@ -96,10 +98,7 @@ contract BatchPoisonTest is Test {
             heights,
             txs,
             proofs,
-            INativeQueryVerifier.ContinuityProof({
-                lowerEndpointDigest: keccak256("l"),
-                roots: roots
-            })
+            INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: keccak256("l"), roots: roots})
         );
     }
 
@@ -109,10 +108,9 @@ contract BatchPoisonTest is Test {
     /// genuine half is what makes an indexer pick the transaction up. With the registry gated on
     /// the relayer, an attacker cannot produce that half from their own transaction.
     function test_thePoisonerCannotProduceTheGenuineHalf() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(SourceBatchRegistry.NotAuthorised.selector, address(poisoner))
-        );
-        poisoner.poison(registry, keccak256("victim-measurement"), CONTRIBUTOR, block.timestamp - 60);
+        bytes memory sig = _sig(registry, keccak256("victim-measurement"), CONTRIBUTOR);
+        vm.expectRevert(abi.encodeWithSelector(SourceBatchRegistry.NotAuthorised.selector, address(poisoner)));
+        poisoner.poison(registry, keccak256("victim-measurement"), CONTRIBUTOR, block.timestamp - 60, sig);
     }
 
     /// @notice Second line of defence: even a co-emitted lookalike cannot strand the batch.
@@ -132,7 +130,13 @@ contract BatchPoisonTest is Test {
         registry.setRelayer(address(poisoner));
 
         vm.recordLogs();
-        poisoner.poison(registry, keccak256("victim-measurement"), CONTRIBUTOR, block.timestamp - 60);
+        poisoner.poison(
+            registry,
+            keccak256("victim-measurement"),
+            CONTRIBUTOR,
+            block.timestamp - 60,
+            _sig(registry, keccak256("victim-measurement"), CONTRIBUTOR)
+        );
         Vm.Log[] memory entries = vm.getRecordedLogs();
         assertEq(entries.length, 2, "receipt carries the real log and the lookalike");
         assertEq(entries[0].emitter, address(registry), "log 0 is genuine");
@@ -145,8 +149,7 @@ contract BatchPoisonTest is Test {
 
         for (uint256 i; i < 4; ++i) {
             assertTrue(
-                batch.settled(keccak256(abi.encode("honest", i))),
-                "innocent measurement survived the poisoned entry"
+                batch.settled(keccak256(abi.encode("honest", i))), "innocent measurement survived the poisoned entry"
             );
         }
         assertTrue(batch.settled(keccak256("victim-measurement")), "the genuine half still settles");
@@ -158,19 +161,19 @@ contract BatchPoisonTest is Test {
     ///         claim the SAME height and the call still succeeds.
     function test_heightsAreNeverCheckedAgainstTheTransactions() public {
         bytes[] memory txs = new bytes[](3);
-        for (uint256 i; i < 3; ++i) txs[i] = _honest(keccak256(abi.encode("h", i)));
+        for (uint256 i; i < 3; ++i) {
+            txs[i] = _honest(keccak256(abi.encode("h", i)));
+        }
 
         uint64[] memory heights = new uint64[](3);
         heights[0] = 1; // three different, arbitrary, mutually inconsistent heights
         heights[1] = 1;
         heights[2] = type(uint64).max;
 
-        INativeQueryVerifier.MerkleProof[] memory proofs =
-            new INativeQueryVerifier.MerkleProof[](3);
+        INativeQueryVerifier.MerkleProof[] memory proofs = new INativeQueryVerifier.MerkleProof[](3);
         for (uint256 i; i < 3; ++i) {
             proofs[i] = INativeQueryVerifier.MerkleProof({
-                root: bytes32(0),
-                siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+                root: bytes32(0), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             });
         }
         bytes32[] memory roots = new bytes32[](0); // EMPTY shared continuity proof
@@ -180,10 +183,7 @@ contract BatchPoisonTest is Test {
                 heights,
                 txs,
                 proofs,
-                INativeQueryVerifier.ContinuityProof({
-                    lowerEndpointDigest: bytes32(0),
-                    roots: roots
-                })
+                INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: bytes32(0), roots: roots})
             ),
             3,
             "settles with duplicate heights, zero merkle roots and an empty continuity proof"

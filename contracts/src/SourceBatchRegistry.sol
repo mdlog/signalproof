@@ -19,10 +19,17 @@ pragma solidity ^0.8.30;
 ///         check would pass, because nothing about the measurement would be forged — only
 ///         unauthorised.
 ///
-///         So authorisation lives here, at the only point that can hold it. The gateway verifies
-///         the contributor's signature over the measurement root before relaying
-///         (server/routers.ts, verifyMeasurementIntegrity), and the relayer is the trust boundary
-///         that carries that verification on-chain.
+///         So authorisation lives here, at the only point that can hold it, in two layers that
+///         cover different attackers:
+///
+///         1. ADMISSION — only the relayer may submit. The gateway's checks (freshness, geohash
+///            precision, uniqueness, rate limit) are what that key carries on-chain; an outsider
+///            with a perfectly valid signature is still refused.
+///         2. ATTRIBUTION — the contributor's own EIP-191 signature over the measurement is
+///            recovered HERE, from the same text the wallet displayed. A relayer that names a
+///            different payee holds no signature for that pairing, so it cannot forge attribution
+///            even though it is trusted for admission. Before this check lived on-chain, the
+///            gateway verified the signature and the destination chain simply believed it.
 contract SourceBatchRegistry {
     /// @notice Emitted once per accepted measurement.
     /// @dev    `contributor` is indexed because SignalProofSettlement on Creditcoin reads it from
@@ -55,6 +62,10 @@ contract SourceBatchRegistry {
     error NotAuthorised(address caller);
     error NotOwner();
     error ZeroAddress();
+    error SignatureMismatch(address recovered, address contributor);
+    error BadSignatureLength(uint256 length);
+
+    bytes16 private constant HEX_DIGITS = "0123456789abcdef";
 
     constructor(address relayer_) {
         if (relayer_ == address(0)) revert ZeroAddress();
@@ -88,6 +99,8 @@ contract SourceBatchRegistry {
     /// @param timestamp       Measurement time, epoch seconds, as reported by the gateway.
     /// @param latencyMs       Observed latency in milliseconds.
     /// @param downloadMbps    Observed download throughput in Mbps.
+    /// @param signature       The contributor's EIP-191 signature (65 bytes, r‖s‖v) over
+    ///                        `signingMessage(measurementRoot, contributor)`.
     function submitMeasurement(
         bytes32 measurementRoot,
         bytes32 areaHash,
@@ -95,23 +108,84 @@ contract SourceBatchRegistry {
         bytes32 sessionHash,
         uint256 timestamp,
         uint256 latencyMs,
-        uint256 downloadMbps
+        uint256 downloadMbps,
+        bytes calldata signature
     ) external {
         if (msg.sender != relayer) revert NotAuthorised(msg.sender);
         if (measurementRoot == bytes32(0)) revert EmptyRoot();
         if (contributor == address(0)) revert ZeroContributor();
         if (registered[measurementRoot]) revert AlreadyRegistered(measurementRoot);
 
+        address recovered = recoverContributor(measurementRoot, contributor, signature);
+        if (recovered != contributor) revert SignatureMismatch(recovered, contributor);
+
         registered[measurementRoot] = true;
 
         emit MeasurementSubmitted(
-            measurementRoot,
-            areaHash,
-            contributor,
-            sessionHash,
-            timestamp,
-            latencyMs,
-            downloadMbps
+            measurementRoot, areaHash, contributor, sessionHash, timestamp, latencyMs, downloadMbps
         );
+    }
+
+    /// @notice The exact text the contributor's wallet displayed and signed (personal_sign).
+    /// @dev    Mirrors shared/measurement.ts `buildMeasurementSigningMessage` byte for byte; the
+    ///         hex parts are lowercase because keccak256 emits lowercase and the client lowercases
+    ///         the address before building the text. Pinned by a signature vector produced with
+    ///         ethers in the TypeScript tests.
+    function signingMessage(bytes32 measurementRoot, address contributor) public pure returns (string memory) {
+        return string.concat(
+            unicode"SignalProof — confirm this measurement\n\n",
+            "Signing proves this measurement is yours, so the reward is credited to your address.\n",
+            "It authorises no transaction and cannot move your funds.\n\n",
+            "Measurement: 0x",
+            _hex(abi.encodePacked(measurementRoot)),
+            "\n",
+            "Contributor: 0x",
+            _hex(abi.encodePacked(contributor))
+        );
+    }
+
+    /// @notice EIP-191 digest of `signingMessage`: keccak256("\x19Ethereum Signed Message:\n" ‖ len ‖ text).
+    function signingDigest(bytes32 measurementRoot, address contributor) public pure returns (bytes32) {
+        bytes memory message = bytes(signingMessage(measurementRoot, contributor));
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n", _decimal(message.length), message));
+    }
+
+    /// @notice Recover the signer of `signingMessage(measurementRoot, contributor)`.
+    /// @dev    Accepts v as 27/28 or 0/1; some wallets return the latter.
+    function recoverContributor(bytes32 measurementRoot, address contributor, bytes calldata signature)
+        public
+        pure
+        returns (address)
+    {
+        if (signature.length != 65) revert BadSignatureLength(signature.length);
+        bytes32 r = bytes32(signature[0:32]);
+        bytes32 s = bytes32(signature[32:64]);
+        uint8 v = uint8(signature[64]);
+        if (v < 27) v += 27;
+        return ecrecover(signingDigest(measurementRoot, contributor), v, r, s);
+    }
+
+    function _hex(bytes memory data) private pure returns (string memory) {
+        bytes memory out = new bytes(data.length * 2);
+        for (uint256 i; i < data.length; ++i) {
+            uint8 b = uint8(data[i]);
+            out[2 * i] = HEX_DIGITS[b >> 4];
+            out[2 * i + 1] = HEX_DIGITS[b & 0x0f];
+        }
+        return string(out);
+    }
+
+    function _decimal(uint256 value) private pure returns (string memory) {
+        if (value == 0) return "0";
+        uint256 digits;
+        for (uint256 t = value; t != 0; t /= 10) {
+            ++digits;
+        }
+        bytes memory out = new bytes(digits);
+        while (value != 0) {
+            out[--digits] = bytes1(uint8(48 + (value % 10)));
+            value /= 10;
+        }
+        return string(out);
     }
 }

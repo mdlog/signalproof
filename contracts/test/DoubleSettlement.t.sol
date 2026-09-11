@@ -4,11 +4,11 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {SourceBatchRegistry} from "../src/SourceBatchRegistry.sol";
+import {SignedSubmit} from "./SignedSubmit.sol";
 import {SignalProofSettlement} from "../src/SignalProofSettlement.sol";
 import {SignalProofBatchSettlement} from "../src/SignalProofBatchSettlement.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {MockNativeQueryVerifier} from "./MockNativeQueryVerifier.sol";
 import {EvmTxFixture} from "./EvmTxFixture.sol";
 
@@ -21,9 +21,9 @@ import {EvmTxFixture} from "./EvmTxFixture.sol";
 ///
 /// The cross-check that closes it can only be added to a contract that has not shipped yet, so it
 /// lives on the batch side and is exercised here.
-contract DoubleSettlementTest is Test {
+contract DoubleSettlementTest is SignedSubmit {
     address constant VERIFIER_PRECOMPILE = 0x0000000000000000000000000000000000000FD2;
-    address constant CONTRIBUTOR = address(0xC0FFEE);
+    address CONTRIBUTOR;
     address constant OPPORTUNIST = address(0xBADBAD);
 
     uint256 constant REWARD = 0.001 ether;
@@ -42,6 +42,7 @@ contract DoubleSettlementTest is Test {
         verifier.setShouldVerify(true);
 
         registry = new SourceBatchRegistry(address(this));
+        CONTRIBUTOR = _wallet(0xC0FFEE);
         single = new SignalProofSettlement(address(registry), REWARD, MAX_AGE);
         batch = new SignalProofBatchSettlement(address(registry), REWARD, MAX_AGE);
         vm.deal(address(single), POOL);
@@ -59,12 +60,18 @@ contract DoubleSettlementTest is Test {
     function _emit(bytes32 root) internal returns (bytes memory) {
         vm.recordLogs();
         registry.submitMeasurement(
-            root, keccak256("zone"), CONTRIBUTOR, keccak256("s"), block.timestamp - 60, 28, 91
+            root,
+            keccak256("zone"),
+            CONTRIBUTOR,
+            keccak256("s"),
+            block.timestamp - 60,
+            28,
+            91,
+            _sig(registry, root, CONTRIBUTOR)
         );
         Vm.Log[] memory e = vm.getRecordedLogs();
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
-        logs[0] =
-            EvmV1Decoder.LogEntryTuple({address_: e[0].emitter, topics: e[0].topics, data: e[0].data});
+        logs[0] = EvmV1Decoder.LogEntryTuple({address_: e[0].emitter, topics: e[0].topics, data: e[0].data});
         return EvmTxFixture.buildType2(1, logs);
     }
 
@@ -72,8 +79,14 @@ contract DoubleSettlementTest is Test {
         bytes32[] memory roots = new bytes32[](1);
         roots[0] = keccak256("continuity");
         return single.execute(
-            0, 1, 11_657_000, txBytes, keccak256("merkle"),
-            new INativeQueryVerifier.MerkleProofEntry[](0), keccak256("lower"), roots
+            0,
+            1,
+            11_657_000,
+            txBytes,
+            keccak256("merkle"),
+            new INativeQueryVerifier.MerkleProofEntry[](0),
+            keccak256("lower"),
+            roots
         );
     }
 
@@ -83,20 +96,18 @@ contract DoubleSettlementTest is Test {
         uint64[] memory heights = new uint64[](1);
         heights[0] = 11_657_000;
 
-        INativeQueryVerifier.MerkleProof[] memory proofs =
-            new INativeQueryVerifier.MerkleProof[](1);
+        INativeQueryVerifier.MerkleProof[] memory proofs = new INativeQueryVerifier.MerkleProof[](1);
         proofs[0] = INativeQueryVerifier.MerkleProof({
-            root: keccak256("merkle"),
-            siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+            root: keccak256("merkle"), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
         });
         bytes32[] memory roots = new bytes32[](1);
         roots[0] = keccak256("continuity");
         return batch.executeBatch(
-            1, heights, txs, proofs,
-            INativeQueryVerifier.ContinuityProof({
-                lowerEndpointDigest: keccak256("lower"),
-                roots: roots
-            })
+            1,
+            heights,
+            txs,
+            proofs,
+            INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: keccak256("lower"), roots: roots})
         );
     }
 
@@ -133,23 +144,21 @@ contract DoubleSettlementTest is Test {
         uint64[] memory heights = new uint64[](2);
         heights[0] = 11_657_000;
         heights[1] = 11_657_001;
-        INativeQueryVerifier.MerkleProof[] memory proofs =
-            new INativeQueryVerifier.MerkleProof[](2);
+        INativeQueryVerifier.MerkleProof[] memory proofs = new INativeQueryVerifier.MerkleProof[](2);
         for (uint256 i; i < 2; ++i) {
             proofs[i] = INativeQueryVerifier.MerkleProof({
-                root: keccak256(abi.encode(i)),
-                siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+                root: keccak256(abi.encode(i)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             });
         }
         bytes32[] memory roots = new bytes32[](1);
         roots[0] = keccak256("continuity");
 
         uint256 count = batch.executeBatch(
-            1, heights, txs, proofs,
-            INativeQueryVerifier.ContinuityProof({
-                lowerEndpointDigest: keccak256("lower"),
-                roots: roots
-            })
+            1,
+            heights,
+            txs,
+            proofs,
+            INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: keccak256("lower"), roots: roots})
         );
 
         assertEq(count, 1, "only the unpaid one settles");
@@ -169,11 +178,7 @@ contract DoubleSettlementTest is Test {
         vm.prank(OPPORTUNIST);
         assertEq(_batch(txBytes), 1, "second contract settles the same measurement");
 
-        assertEq(
-            single.rewards(CONTRIBUTOR) + batch.rewards(CONTRIBUTOR),
-            REWARD * 2,
-            "one measurement, two rewards"
-        );
+        assertEq(single.rewards(CONTRIBUTOR) + batch.rewards(CONTRIBUTOR), REWARD * 2, "one measurement, two rewards");
     }
 
     /// @notice The cross-check must not block the ordinary case.
@@ -191,8 +196,7 @@ contract DoubleSettlementTest is Test {
     /// replacement has to defer to its predecessor as well as to its peers, or the first thing the
     /// redeploy does is pay a second time for everything the retired route settled.
     function test_aRetiredRouteIsStillDeferredTo() public {
-        SignalProofBatchSettlement retired =
-            new SignalProofBatchSettlement(address(registry), REWARD, MAX_AGE);
+        SignalProofBatchSettlement retired = new SignalProofBatchSettlement(address(registry), REWARD, MAX_AGE);
         vm.deal(address(retired), POOL);
 
         bytes memory txBytes = _emit(keccak256("dbl-retired"));
@@ -202,20 +206,18 @@ contract DoubleSettlementTest is Test {
         txs[0] = txBytes;
         uint64[] memory heights = new uint64[](1);
         heights[0] = 11_657_000;
-        INativeQueryVerifier.MerkleProof[] memory proofs =
-            new INativeQueryVerifier.MerkleProof[](1);
+        INativeQueryVerifier.MerkleProof[] memory proofs = new INativeQueryVerifier.MerkleProof[](1);
         proofs[0] = INativeQueryVerifier.MerkleProof({
-            root: keccak256("merkle"),
-            siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+            root: keccak256("merkle"), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
         });
         bytes32[] memory continuity = new bytes32[](1);
         continuity[0] = keccak256("continuity");
         retired.executeBatch(
-            1, heights, txs, proofs,
-            INativeQueryVerifier.ContinuityProof({
-                lowerEndpointDigest: keccak256("lower"),
-                roots: continuity
-            })
+            1,
+            heights,
+            txs,
+            proofs,
+            INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: keccak256("lower"), roots: continuity})
         );
         assertTrue(retired.settled(keccak256("dbl-retired")));
 
@@ -234,13 +236,11 @@ contract DoubleSettlementTest is Test {
     function test_theSiblingListIsBounded() public {
         uint256 max = batch.MAX_SIBLINGS();
         address[] memory tooMany = new address[](max + 1);
-        for (uint256 i; i < tooMany.length; ++i) tooMany[i] = address(uint160(i + 1));
+        for (uint256 i; i < tooMany.length; ++i) {
+            tooMany[i] = address(uint160(i + 1));
+        }
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                SignalProofBatchSettlement.TooManySiblings.selector, max + 1, max
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(SignalProofBatchSettlement.TooManySiblings.selector, max + 1, max));
         batch.setSiblingSettlements(tooMany);
     }
 

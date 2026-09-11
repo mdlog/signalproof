@@ -4,10 +4,10 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {SourceBatchRegistry} from "../src/SourceBatchRegistry.sol";
+import {SignedSubmit} from "./SignedSubmit.sol";
 import {SignalProofBatchSettlement} from "../src/SignalProofBatchSettlement.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {MockNativeQueryVerifier} from "./MockNativeQueryVerifier.sol";
 import {EvmTxFixture} from "./EvmTxFixture.sol";
 
@@ -16,10 +16,10 @@ import {EvmTxFixture} from "./EvmTxFixture.sol";
 /// Every invariant the single-proof contract enforces is re-asserted here, because the batch
 /// contract cannot inherit ASCBase and therefore re-implements them. A batch settlement route that
 /// skipped emitter binding would be a hole opened by an optimisation.
-contract SignalProofBatchSettlementTest is Test {
+contract SignalProofBatchSettlementTest is SignedSubmit {
     address constant VERIFIER_PRECOMPILE = 0x0000000000000000000000000000000000000FD2;
-    address constant CONTRIBUTOR = address(0xC0FFEE);
-    address constant OTHER = address(0xDECAF);
+    address CONTRIBUTOR;
+    address OTHER;
 
     uint256 constant REWARD = 0.001 ether;
     uint256 constant MAX_AGE = 24 hours;
@@ -36,6 +36,8 @@ contract SignalProofBatchSettlementTest is Test {
         verifier.setShouldVerify(true);
 
         registry = new SourceBatchRegistry(address(this));
+        CONTRIBUTOR = _wallet(0xC0FFEE);
+        OTHER = _wallet(0xDECAF);
         batch = new SignalProofBatchSettlement(address(registry), REWARD, MAX_AGE);
         sig = batch.MEASUREMENT_SUBMITTED_SIG();
         vm.deal(address(batch), 1 ether);
@@ -45,35 +47,32 @@ contract SignalProofBatchSettlementTest is Test {
     receive() external payable {}
 
     /// @dev Emit through the real registry, then wrap what it emitted as prover-shaped txBytes.
-    function _emit(bytes32 root, address contributor, uint256 timestamp)
-        internal
-        returns (bytes memory)
-    {
+    function _emit(bytes32 root, address contributor, uint256 timestamp) internal returns (bytes memory) {
         vm.recordLogs();
         registry.submitMeasurement(
-            root, keccak256("zone"), contributor, keccak256("session"), timestamp, 28, 91
+            root,
+            keccak256("zone"),
+            contributor,
+            keccak256("session"),
+            timestamp,
+            28,
+            91,
+            _sig(registry, root, contributor)
         );
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
         logs[0] = EvmV1Decoder.LogEntryTuple({
-            address_: entries[0].emitter,
-            topics: entries[0].topics,
-            data: entries[0].data
+            address_: entries[0].emitter, topics: entries[0].topics, data: entries[0].data
         });
         return EvmTxFixture.buildType2(1, logs);
     }
 
-    function _emptyProofs(uint256 n)
-        internal
-        pure
-        returns (INativeQueryVerifier.MerkleProof[] memory proofs)
-    {
+    function _emptyProofs(uint256 n) internal pure returns (INativeQueryVerifier.MerkleProof[] memory proofs) {
         proofs = new INativeQueryVerifier.MerkleProof[](n);
         for (uint256 i; i < n; ++i) {
             proofs[i] = INativeQueryVerifier.MerkleProof({
-                root: keccak256(abi.encode("merkle", i)),
-                siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+                root: keccak256(abi.encode("merkle", i)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             });
         }
     }
@@ -81,15 +80,14 @@ contract SignalProofBatchSettlementTest is Test {
     function _shared() internal pure returns (INativeQueryVerifier.ContinuityProof memory) {
         bytes32[] memory roots = new bytes32[](1);
         roots[0] = keccak256("continuity");
-        return INativeQueryVerifier.ContinuityProof({
-            lowerEndpointDigest: keccak256("lower"),
-            roots: roots
-        });
+        return INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: keccak256("lower"), roots: roots});
     }
 
     function _run(bytes[] memory txs) internal returns (uint256) {
         uint64[] memory heights = new uint64[](txs.length);
-        for (uint256 i; i < txs.length; ++i) heights[i] = uint64(11_657_000 + i);
+        for (uint256 i; i < txs.length; ++i) {
+            heights[i] = uint64(11_657_000 + i);
+        }
         return batch.executeBatch(1, heights, txs, _emptyProofs(txs.length), _shared());
     }
 
@@ -138,14 +136,19 @@ contract SignalProofBatchSettlementTest is Test {
 
         vm.recordLogs();
         impostor.submitMeasurement(
-            keccak256("b-forged"), keccak256("z"), CONTRIBUTOR, keccak256("s"), block.timestamp - 60, 1, 999
+            keccak256("b-forged"),
+            keccak256("z"),
+            CONTRIBUTOR,
+            keccak256("s"),
+            block.timestamp - 60,
+            1,
+            999,
+            _sig(impostor, keccak256("b-forged"), CONTRIBUTOR)
         );
         Vm.Log[] memory entries = vm.getRecordedLogs();
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
         logs[0] = EvmV1Decoder.LogEntryTuple({
-            address_: entries[0].emitter,
-            topics: entries[0].topics,
-            data: entries[0].data
+            address_: entries[0].emitter, topics: entries[0].topics, data: entries[0].data
         });
 
         bytes[] memory txs = new bytes[](1);
@@ -171,7 +174,14 @@ contract SignalProofBatchSettlementTest is Test {
 
         vm.recordLogs();
         impostor.submitMeasurement(
-            keccak256("b-bad"), keccak256("z"), CONTRIBUTOR, keccak256("s"), block.timestamp - 60, 1, 1
+            keccak256("b-bad"),
+            keccak256("z"),
+            CONTRIBUTOR,
+            keccak256("s"),
+            block.timestamp - 60,
+            1,
+            1,
+            _sig(impostor, keccak256("b-bad"), CONTRIBUTOR)
         );
         Vm.Log[] memory e = vm.getRecordedLogs();
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
@@ -187,15 +197,20 @@ contract SignalProofBatchSettlementTest is Test {
     function test_rejectsBatchWithAFailedSourceTransaction() public {
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
         logs[0] = EvmTxFixture.measurementLog(
-            address(registry), sig, keccak256("b-rev"), keccak256("z"), CONTRIBUTOR,
-            keccak256("s"), block.timestamp - 60, 28, 91
+            address(registry),
+            sig,
+            keccak256("b-rev"),
+            keccak256("z"),
+            CONTRIBUTOR,
+            keccak256("s"),
+            block.timestamp - 60,
+            28,
+            91
         );
         bytes[] memory txs = new bytes[](1);
         txs[0] = EvmTxFixture.buildType2(0, logs); // receiptStatus = 0
 
-        vm.expectRevert(
-            abi.encodeWithSelector(SignalProofBatchSettlement.SourceTransactionFailed.selector, uint8(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(SignalProofBatchSettlement.SourceTransactionFailed.selector, uint8(0)));
         _run(txs);
     }
 

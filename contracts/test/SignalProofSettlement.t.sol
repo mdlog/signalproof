@@ -5,8 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {SignalProofSettlement} from "../src/SignalProofSettlement.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {MockNativeQueryVerifier} from "./MockNativeQueryVerifier.sol";
 import {EvmTxFixture} from "./EvmTxFixture.sol";
 
@@ -51,11 +50,7 @@ contract SignalProofSettlementTest is Test {
     // helpers                                                          //
     // ---------------------------------------------------------------- //
 
-    function _emptySiblings()
-        internal
-        pure
-        returns (INativeQueryVerifier.MerkleProofEntry[] memory)
-    {
+    function _emptySiblings() internal pure returns (INativeQueryVerifier.MerkleProofEntry[] memory) {
         return new INativeQueryVerifier.MerkleProofEntry[](0);
     }
 
@@ -77,17 +72,7 @@ contract SignalProofSettlementTest is Test {
 
     function _validTx(bytes32 root, uint256 timestamp) internal view returns (bytes memory) {
         return EvmTxFixture.singleLogTx(
-            EvmTxFixture.measurementLog(
-                SOURCE_REGISTRY,
-                sig,
-                root,
-                AREA,
-                CONTRIBUTOR,
-                SESSION,
-                timestamp,
-                28,
-                91
-            )
+            EvmTxFixture.measurementLog(SOURCE_REGISTRY, sig, root, AREA, CONTRIBUTOR, SESSION, timestamp, 28, 91)
         );
     }
 
@@ -113,10 +98,7 @@ contract SignalProofSettlementTest is Test {
         Vm.Log[] memory entries = vm.getRecordedLogs();
         bool found;
         for (uint256 i; i < entries.length; ++i) {
-            if (
-                entries[i].topics[0]
-                    == keccak256("MeasurementVerified(bytes32,bytes32,address,uint256,bytes32)")
-            ) {
+            if (entries[i].topics[0] == keccak256("MeasurementVerified(bytes32,bytes32,address,uint256,bytes32)")) {
                 assertEq(entries[i].topics[1], root);
                 assertEq(entries[i].topics[2], AREA);
                 assertEq(address(uint160(uint256(entries[i].topics[3]))), CONTRIBUTOR);
@@ -147,11 +129,7 @@ contract SignalProofSettlementTest is Test {
             )
         );
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                SignalProofSettlement.WrongEmitter.selector, IMPOSTOR, SOURCE_REGISTRY
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(SignalProofSettlement.WrongEmitter.selector, IMPOSTOR, SOURCE_REGISTRY));
         _execute(forged);
 
         assertEq(settlement.rewards(CONTRIBUTOR), 0, "forged event must not pay out");
@@ -170,21 +148,11 @@ contract SignalProofSettlementTest is Test {
     function test_rejectsFailedSourceTransaction() public {
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
         logs[0] = EvmTxFixture.measurementLog(
-            SOURCE_REGISTRY,
-            sig,
-            keccak256("m-reverted"),
-            AREA,
-            CONTRIBUTOR,
-            SESSION,
-            block.timestamp - 60,
-            28,
-            91
+            SOURCE_REGISTRY, sig, keccak256("m-reverted"), AREA, CONTRIBUTOR, SESSION, block.timestamp - 60, 28, 91
         );
         bytes memory revertedTx = EvmTxFixture.buildType2(0, logs); // receiptStatus = 0
 
-        vm.expectRevert(
-            abi.encodeWithSelector(SignalProofSettlement.SourceTransactionFailed.selector, uint8(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(SignalProofSettlement.SourceTransactionFailed.selector, uint8(0)));
         _execute(revertedTx);
     }
 
@@ -209,9 +177,7 @@ contract SignalProofSettlementTest is Test {
         // second layer inside _settleOne must catch it.
         verifier.setTxIndex(99);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(SignalProofSettlement.MeasurementAlreadySettled.selector, root)
-        );
+        vm.expectRevert(abi.encodeWithSelector(SignalProofSettlement.MeasurementAlreadySettled.selector, root));
         _execute(_validTx(root, block.timestamp - 60));
     }
 
@@ -222,9 +188,7 @@ contract SignalProofSettlementTest is Test {
     function test_rejectsStaleMeasurement() public {
         uint256 stale = block.timestamp - MAX_AGE - 1;
         vm.expectRevert(
-            abi.encodeWithSelector(
-                SignalProofSettlement.MeasurementTooOld.selector, stale, block.timestamp
-            )
+            abi.encodeWithSelector(SignalProofSettlement.MeasurementTooOld.selector, stale, block.timestamp)
         );
         _execute(_validTx(keccak256("m-stale"), stale));
     }
@@ -232,9 +196,7 @@ contract SignalProofSettlementTest is Test {
     function test_rejectsFutureMeasurement() public {
         uint256 future = block.timestamp + 1;
         vm.expectRevert(
-            abi.encodeWithSelector(
-                SignalProofSettlement.MeasurementInFuture.selector, future, block.timestamp
-            )
+            abi.encodeWithSelector(SignalProofSettlement.MeasurementInFuture.selector, future, block.timestamp)
         );
         _execute(_validTx(keccak256("m-future"), future));
     }
@@ -258,11 +220,7 @@ contract SignalProofSettlementTest is Test {
         EvmV1Decoder.LogEntryTuple[] memory logs = new EvmV1Decoder.LogEntryTuple[](1);
         bytes32[] memory topics = new bytes32[](1);
         topics[0] = keccak256("SomethingElse(uint256)");
-        logs[0] = EvmV1Decoder.LogEntryTuple({
-            address_: SOURCE_REGISTRY,
-            topics: topics,
-            data: abi.encode(uint256(1))
-        });
+        logs[0] = EvmV1Decoder.LogEntryTuple({address_: SOURCE_REGISTRY, topics: topics, data: abi.encode(uint256(1))});
 
         vm.expectRevert(SignalProofSettlement.NoMeasurementLog.selector);
         _execute(EvmTxFixture.buildType2(1, logs));
@@ -301,11 +259,7 @@ contract SignalProofSettlementTest is Test {
         settlement.withdraw(address(settlement).balance);
 
         vm.prank(CONTRIBUTOR);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                SignalProofSettlement.InsufficientBalance.selector, REWARD, uint256(0)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(SignalProofSettlement.InsufficientBalance.selector, REWARD, uint256(0)));
         settlement.claim();
 
         // Accounting is preserved — the contributor can still claim once refunded.
