@@ -38,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import CoverageMap from "@/components/CoverageMap";
 import { useWallet } from "@/hooks/useWallet";
@@ -56,6 +57,7 @@ import {
   type ThroughputResult,
 } from "@/lib/measure";
 import { deriveMeasurementRoot, deriveSessionHash, makeNonce } from "@shared/measurement";
+import { qualityScore } from "@shared/quality";
 
 const sourceDocs = "https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure/attestcoin-sdk-usc-sdk";
 
@@ -64,17 +66,6 @@ type TestState = "idle" | "sampling" | "submitted" | "attesting" | "settled" | "
 
 
 
-/**
- * Collapse latency and throughput into a single 0-100 quality score.
- *
- * Deliberately simple and stated openly rather than tuned to flatter the data: latency contributes
- * a linear penalty up to 200 ms, throughput a linear credit up to 100 Mbps, weighted evenly.
- */
-function qualityScore(latencyMs: number | null, downloadMbps: number | null): number {
-  const lat = latencyMs == null ? 50 : Math.max(0, 100 - latencyMs / 2);
-  const dl = downloadMbps == null ? 50 : Math.min(100, downloadMbps);
-  return Math.round(Math.max(0, Math.min(100, lat * 0.5 + dl * 0.5)));
-}
 
 function toneFor(quality: number) {
   if (quality >= 80) return { status: "strong", color: "#31B7A6" };
@@ -154,6 +145,7 @@ export default function Home() {
   const [selectedZone, setSelectedZone] = useState("Kota Tua");
   const [testState, setTestState] = useState<TestState>("idle");
   const [copied, setCopied] = useState(false);
+  const [brief, setBrief] = useState<{ area: string; text: string; loading: boolean; error: string | null } | null>(null);
 
   /**
    * Live read model, straight from the deployed contracts.
@@ -602,6 +594,17 @@ export default function Home() {
     }
   };
 
+  const openBrief = async (area: string) => {
+    setBrief({ area, text: "", loading: true, error: null });
+    try {
+      const res = await fetch(`/v1/areas/${encodeURIComponent(area)}/brief`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`The buyer API answered ${res.status}.`);
+      setBrief({ area, text: await res.text(), loading: false, error: null });
+    } catch (error) {
+      setBrief({ area, text: "", loading: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  };
+
   const copyText = async (text: string) => {
     await navigator.clipboard?.writeText(text);
     setCopied(true);
@@ -649,10 +652,29 @@ export default function Home() {
 
             {mode === "proofs" && <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]"><Card className="rounded-xl border-[#DCE5EB] bg-white"><CardHeader className="flex-row items-start justify-between space-y-0 px-6 pb-3 pt-6"><div><CardTitle className="font-display text-2xl">Proof queue</CardTitle><p className="mt-1 text-xs leading-relaxed text-[#8EA0AC]">The asynchronous rail from source-chain event to Creditcoin settlement.</p></div><Badge className="rounded-full bg-[#FFF0D2] text-[#9A6517]">{snap && snap.totals.submitted > proofQueue.length ? `${proofQueue.length} most recent of ${snap.totals.submitted}` : `${proofQueue.length} item${proofQueue.length === 1 ? "" : "s"}`}</Badge></CardHeader><CardContent className="space-y-3 px-6 pb-6">{proofQueue.map((proof) => <a key={proof.id} href={proof.href ?? undefined} target={proof.href ? "_blank" : undefined} rel={proof.href ? "noreferrer" : undefined} aria-disabled={proof.href ? undefined : true} className={`block w-full rounded-xl border border-[#DCE5EB] p-4 text-left transition-all ${proof.href ? "hover:-translate-y-0.5 hover:border-[#BFD1D9] hover:shadow-[0_8px_20px_rgba(16,42,67,.06)]" : "cursor-default opacity-90"}`}><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${proof.tone === "teal" ? "bg-[#DDF7F1] text-[#147A70]" : proof.tone === "amber" ? "bg-[#FFF0D2] text-[#9A6517]" : "bg-[#FDE4DF] text-[#B44A3C]"}`}>{proof.tone === "teal" ? <CheckCircle2 className="h-5 w-5" /> : proof.tone === "amber" ? <Clock3 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}</span><div><div className="font-semibold">{proof.device} <span className="ml-1 font-mono text-[10px] font-normal text-[#A0AFBB]">{proof.id}</span></div><div className="mt-1 text-xs text-[#73879A]">{proof.detail}</div></div></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusClass(proof.status)}`}>{proof.status}</span></div><div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[#EDF2F5] pt-3 font-mono text-[10px] text-[#8EA0AC]"><span>tx {proof.tx}</span><span>block {proof.block}</span><span className="ml-auto inline-flex items-center gap-1 text-[#147A70]">{proof.href ? "Open on explorer" : "Fixture · no transaction"} <ChevronRight className="h-3 w-3" /></span></div></a>)}</CardContent></Card><ClaimReward wallet={wallet} /><Card className="rounded-xl border-[#DCE5EB] bg-white"><CardHeader className="px-6 pb-2 pt-6"><CardTitle className="font-display text-xl">Verified pathway</CardTitle><p className="mt-1 text-xs leading-relaxed text-[#8EA0AC]">The protocol steps a judge should be able to follow.</p></CardHeader><CardContent className="space-y-5 px-6 pb-6"><FlowStep index="01" title="Ethereum Sepolia" detail="MeasurementSubmitted event returns txHash." state={pathwayState.source} /><FlowStep index="02" title="ProofBuilder" detail="Wait for source block attestation and fetch proof data." state={pathwayState.proof} /><FlowStep index="03" title="CC3 BlockProver" detail="Verify Merkle and continuity proofs on-chain." state={pathwayState.verify} /><FlowStep index="04" title="SignalProof settlement" detail="Release reward only after application checks pass." state={pathwayState.settle} /><Separator /><div className="rounded-xl bg-[#102A43] p-4 text-white"><div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#62DCCB]">Integration note</div><p className="mt-2 text-xs leading-relaxed text-white/60">The UI deliberately shows the waiting state. Cross-chain proof availability is asynchronous; it is not a synchronous button animation in production.</p></div></CardContent></Card><TrustBoundary snap={snap} /></div>}
 
-            {mode === "api" && <div className="space-y-5"><Card className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="flex flex-col justify-between gap-5 p-6 sm:flex-row sm:items-center"><div><Badge className="rounded-full bg-[#DDF7F1] text-[#147A70]">BUYER VIEW</Badge><h2 className="mt-3 font-display text-2xl font-bold">Area data products</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#73879A]">Package verified measurements into coverage snapshots that an ISP, venue, or public program can query without receiving personal movement trails.</p></div><Button className="gap-2 rounded-xl bg-[#102A43] text-white hover:bg-[#173956]" disabled title="Not implemented — there is no brief generator yet."><Sparkles className="h-4 w-4" /> Create area brief (not built)</Button></CardContent></Card><div className="grid gap-5 lg:grid-cols-3">{zones.map(zone => <Card key={zone.code} className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="p-5"><div className="flex items-start justify-between"><div><div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#A0AFBB]">zone/{zone.code}</div><h3 className="mt-2 font-display text-xl font-bold">{zone.name}</h3></div><div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${zone.color}18`, color: zone.color }}><Wifi className="h-5 w-5" /></div></div><div className="mt-6 flex items-end justify-between"><div><div className="font-display text-4xl font-bold" style={{ color: zone.color }}>{zone.quality}</div><div className="text-xs text-[#8EA0AC]">quality score</div></div><div className="text-right text-xs text-[#73879A]"><div>{zone.samples} sample{zone.samples === 1 ? "" : "s"}</div><div className="mt-1">{zone.lastUpdatedMs ? `updated ${relativeTime(Math.floor(zone.lastUpdatedMs / 1000))}` : "no timestamp"}</div></div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-[#EDF2F5]"><div className="h-full rounded-full" style={{ width: `${zone.quality}%`, backgroundColor: zone.color }} /></div><button onClick={() => copyText(zone.code)} className="mt-5 flex w-full items-center justify-between rounded-xl border border-[#DCE5EB] px-3 py-2 text-xs font-semibold text-[#426176] hover:bg-[#F5F8FA]"><span>Copy area geohash</span>{copied ? <Check className="h-3.5 w-3.5 text-[#147A70]" /> : <Copy className="h-3.5 w-3.5" />}</button></CardContent></Card>)}</div><Card className="rounded-xl border-[#DCE5EB] bg-[#F0F8F8]"><CardContent className="flex flex-col gap-3 p-6 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#147A70]"><Activity className="h-4 w-4" /></div><div><div className="font-semibold text-[#102A43]">{isLive ? "Area cards are live; the buyer API is not built" : "Data API is prototype-only"}</div><p className="mt-1 text-xs leading-relaxed text-[#5E7E7C]">{isLive ? `The ${zones.length} area card${zones.length === 1 ? "" : "s"} above are read live from ${snap?.totals.submitted ?? 0} on-chain measurement${snap?.totals.submitted === 1 ? "" : "s"}. There is no buyer endpoint yet — retention policy and buyer authentication are unbuilt.` : "Sample responses illustrate the buyer surface. No chain is configured."}</p></div></div><a href={sourceDocs} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[#147A70]">Read protocol docs <ExternalLink className="h-3.5 w-3.5" /></a></CardContent></Card></div>}
+            {mode === "api" && <div className="space-y-5"><Card className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="flex flex-col justify-between gap-5 p-6 sm:flex-row sm:items-center"><div><Badge className="rounded-full bg-[#DDF7F1] text-[#147A70]">BUYER VIEW</Badge><h2 className="mt-3 font-display text-2xl font-bold">Area data products</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#73879A]">Package verified measurements into coverage snapshots that an ISP, venue, or public program can query without receiving personal movement trails.</p></div><Button onClick={() => { if (zones[0]) void openBrief(zones[0].code); }} disabled={zones.length === 0} title={zones.length === 0 ? "No measured area yet." : `Brief for ${zones[0].code}, the most-sampled area`} className="gap-2 rounded-xl bg-[#102A43] text-white hover:bg-[#173956]"><Sparkles className="h-4 w-4" /> Create area brief</Button></CardContent></Card><div className="grid gap-5 lg:grid-cols-3">{zones.map(zone => <Card key={zone.code} className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="p-5"><div className="flex items-start justify-between"><div><div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#A0AFBB]">zone/{zone.code}</div><h3 className="mt-2 font-display text-xl font-bold">{zone.name}</h3></div><div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${zone.color}18`, color: zone.color }}><Wifi className="h-5 w-5" /></div></div><div className="mt-6 flex items-end justify-between"><div><div className="font-display text-4xl font-bold" style={{ color: zone.color }}>{zone.quality}</div><div className="text-xs text-[#8EA0AC]">quality score</div></div><div className="text-right text-xs text-[#73879A]"><div>{zone.samples} sample{zone.samples === 1 ? "" : "s"}</div><div className="mt-1">{zone.lastUpdatedMs ? `updated ${relativeTime(Math.floor(zone.lastUpdatedMs / 1000))}` : "no timestamp"}</div></div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-[#EDF2F5]"><div className="h-full rounded-full" style={{ width: `${zone.quality}%`, backgroundColor: zone.color }} /></div><button onClick={() => copyText(zone.code)} className="mt-5 flex w-full items-center justify-between rounded-xl border border-[#DCE5EB] px-3 py-2 text-xs font-semibold text-[#426176] hover:bg-[#F5F8FA]"><span>Copy area geohash</span>{copied ? <Check className="h-3.5 w-3.5 text-[#147A70]" /> : <Copy className="h-3.5 w-3.5" />}</button><button onClick={() => { void openBrief(zone.code); }} className="mt-2 flex w-full items-center justify-between rounded-xl bg-[#102A43] px-3 py-2 text-xs font-semibold text-white hover:bg-[#173956]"><span>Area brief</span><Sparkles className="h-3.5 w-3.5" /></button></CardContent></Card>)}</div><Card className="rounded-xl border-[#DCE5EB] bg-[#F0F8F8]"><CardContent className="flex flex-col gap-3 p-6 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#147A70]"><Activity className="h-4 w-4" /></div><div><div className="font-semibold text-[#102A43]">{isLive ? "Area cards and the read-only buyer API are live" : "Data API is prototype-only"}</div><p className="mt-1 text-xs leading-relaxed text-[#5E7E7C]">{isLive ? `The ${zones.length} area card${zones.length === 1 ? "" : "s"} above are read live from ${snap?.totals.submitted ?? 0} on-chain measurement${snap?.totals.submitted === 1 ? "" : "s"}. Query them at /v1/areas and /v1/areas/{geohash}; every sample carries its Sepolia commitment and Creditcoin settlement. Buyer authentication and a retention policy are not built.` : "Sample responses illustrate the buyer surface. No chain is configured."}</p><a href="/v1/areas" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#147A70]">Open /v1/areas <ExternalLink className="h-3 w-3" /></a></div></div><a href={sourceDocs} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[#147A70]">Read protocol docs <ExternalLink className="h-3.5 w-3.5" /></a></CardContent></Card></div>}
           </div>
         </section>
       </div>
+      <Dialog open={brief !== null} onOpenChange={(open) => { if (!open) setBrief(null); }}>
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden rounded-xl p-0">
+          <DialogHeader className="border-b border-[#DCE5EB] px-6 pb-4 pt-6">
+            <DialogTitle className="font-display text-xl">Area brief — {brief?.area}</DialogTitle>
+            <DialogDescription className="text-xs text-[#73879A]">
+              Generated from on-chain state by <code className="font-mono">/v1/areas/{brief?.area}/brief</code>. Every sample links to its Sepolia commitment and Creditcoin settlement.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[55vh] overflow-auto px-6 py-4">
+            {brief?.loading && <div className="text-sm text-[#73879A]">Reading both chains…</div>}
+            {brief?.error && <div className="rounded-lg border border-[#F06A59]/30 bg-[#FFF8F6] px-3 py-2 text-sm text-[#B44A3C]">{brief.error}</div>}
+            {brief && !brief.loading && !brief.error && <pre className="whitespace-pre-wrap break-words font-mono text-[11px] leading-[1.7] text-[#426176]">{brief.text}</pre>}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE5EB] px-6 py-4">
+            <a href={`/v1/areas/${brief?.area ?? ""}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-[#147A70]">JSON with provenance <ExternalLink className="h-3.5 w-3.5" /></a>
+            <Button onClick={() => { if (brief?.text) void copyText(brief.text); }} disabled={!brief?.text} className="gap-2 rounded-xl bg-[#F06A59] text-white hover:bg-[#dc5b4b]">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copy brief</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { startProofWorker } from "../signalproof/proofWorker";
+import { registerBuyerApi } from "../signalproof/buyerApi";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -50,6 +51,8 @@ async function startServer() {
   // Same-origin on purpose: Resource Timing exposes requestStart/responseStart without a
   // Timing-Allow-Origin header only for same-origin requests, and that is the timing the client
   // needs to measure real round-trip time rather than fetch()-to-promise wall clock.
+
+  registerBuyerApi(app);
 
   app.head("/api/net/ping", (_req, res) => {
     res.set("Cache-Control", "no-store");
