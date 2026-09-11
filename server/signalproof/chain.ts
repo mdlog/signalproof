@@ -86,10 +86,22 @@ export async function resolveChainKey(
 }
 
 /** Build the chain context, verifying that both RPCs point where we think they do. */
+/**
+ * Provider options for any Sepolia endpoint that will SEND transactions.
+ *
+ * ethers v6 batches concurrent JSON-RPC calls into one HTTP request, and `broadcastTransaction`
+ * issues three at once (block number, network, eth_sendRawTransaction). Tenderly's public gateway
+ * answers a batch that carries eth_sendRawTransaction with a single HTTP 429 object instead of an
+ * array, ethers cannot match it to any request id, and the send promise never settles — the relayer
+ * would sit on SUBMITTED rows forever with no error. One request per call sidesteps it on every
+ * gateway; the cost is two extra round trips per transaction.
+ */
+export const SEPOLIA_SENDER_PROVIDER_OPTIONS = { staticNetwork: true, batchMaxCount: 1 } as const;
+
 export async function getChainContext(): Promise<ChainContext> {
   if (cached) return cached;
 
-  const sepolia = new JsonRpcProvider(ENV.sepoliaRpcUrl, undefined, { staticNetwork: true });
+  const sepolia = new JsonRpcProvider(ENV.sepoliaRpcUrl, undefined, SEPOLIA_SENDER_PROVIDER_OPTIONS);
   const creditcoin = new JsonRpcProvider(ENV.creditcoinRpcUrl, undefined, { staticNetwork: true });
 
   // Fail loudly at boot rather than producing proofs against the wrong network later.

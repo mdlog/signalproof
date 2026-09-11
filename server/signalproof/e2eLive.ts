@@ -23,6 +23,7 @@ import {
   SOURCE_BATCH_REGISTRY_ABI,
 } from "./abi";
 import { fallbackGasLimit, withGasBuffer } from "./worker";
+import { SEPOLIA_SENDER_PROVIDER_OPTIONS } from "./chain";
 import { AREA_PRECISION, encodeGeohash, geohashCellSize } from "../../shared/geohash";
 import {
   buildMeasurementSigningMessage,
@@ -44,7 +45,7 @@ async function main() {
 
   console.log("\nSignalProof — live end-to-end run\n");
 
-  const sepolia = new JsonRpcProvider(ENV.sepoliaRpcUrl, undefined, { staticNetwork: true });
+  const sepolia = new JsonRpcProvider(ENV.sepoliaRpcUrl, undefined, SEPOLIA_SENDER_PROVIDER_OPTIONS);
   const creditcoin = new JsonRpcProvider(ENV.creditcoinRpcUrl, undefined, { staticNetwork: true });
   const sepoliaSigner = new Wallet(ENV.sepoliaRelayerPrivateKey, sepolia);
   const cc3Signer = new Wallet(ENV.creditcoinRelayerPrivateKey, creditcoin);
