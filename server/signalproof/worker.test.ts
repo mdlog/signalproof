@@ -10,6 +10,7 @@ import {
   fallbackGasLimit,
   getIntegrationReadiness,
   hasExhaustedAttempts,
+  readinessFrom,
   isPermanentFailure,
   toRejectionCode,
   withGasBuffer,
@@ -77,6 +78,27 @@ describe("getIntegrationReadiness", () => {
   it("never leaks a secret value, only the key name", () => {
     const serialised = JSON.stringify(getIntegrationReadiness());
     expect(serialised).not.toMatch(/0x[0-9a-fA-F]{40,}/);
+  });
+
+  // A clone of .env.example has RPC URLs and the public contract addresses but no keys. That is a
+  // dashboard that reads real settlements and cannot submit — not an unconfigured chain, which is
+  // what the sidebar used to call it while the header said LIVE.
+  it("reports read-only when the chain can be read but no relayer key is set", () => {
+    const readiness = readinessFrom(["SEPOLIA_RELAYER_PRIVATE_KEY", "CREDITCOIN_RELAYER_PRIVATE_KEY"]);
+    expect(readiness.readOnly).toBe(true);
+    expect(readiness.relayerReady).toBe(false);
+    expect(readiness.proofWorkerReady).toBe(false);
+  });
+
+  it("is not read-only when a contract address is missing as well", () => {
+    const readiness = readinessFrom(["SEPOLIA_RELAYER_PRIVATE_KEY", "SOURCE_BATCH_REGISTRY_ADDRESS"]);
+    expect(readiness.readOnly).toBe(false);
+  });
+
+  it("is not read-only when everything is configured", () => {
+    const readiness = readinessFrom([]);
+    expect(readiness.readOnly).toBe(false);
+    expect(readiness.proofWorkerReady).toBe(true);
   });
 });
 

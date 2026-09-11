@@ -85,6 +85,11 @@ export type IntegrationReadiness = {
   relayerReady: boolean;
   /** True when a relayed measurement can be proven and settled on Creditcoin. */
   proofWorkerReady: boolean;
+  /**
+   * True when both chains and both contracts are configured but no relayer key is: the dashboard
+   * reads real settlements and nothing can be submitted. A clone of `.env.example` lands here.
+   */
+  readOnly: boolean;
 };
 
 /**
@@ -95,7 +100,11 @@ export type IntegrationReadiness = {
  * claims a measurement was verified when no proof was ever produced.
  */
 export function getIntegrationReadiness(): IntegrationReadiness {
-  const missing = REQUIRED_CHAIN_ENV.filter((key) => !ENV_LOOKUP[key]().trim());
+  return readinessFrom(REQUIRED_CHAIN_ENV.filter((key) => !ENV_LOOKUP[key]().trim()));
+}
+
+/** The readiness decision itself, separated from the environment so it can be tested directly. */
+export function readinessFrom(missing: ChainEnvKey[]): IntegrationReadiness {
   const has = (key: ChainEnvKey) => !missing.includes(key);
 
   const relayerReady =
@@ -103,10 +112,17 @@ export function getIntegrationReadiness(): IntegrationReadiness {
     has("SEPOLIA_RELAYER_PRIVATE_KEY") &&
     has("SOURCE_BATCH_REGISTRY_ADDRESS");
 
+  const readable =
+    has("SEPOLIA_RPC_URL") &&
+    has("SOURCE_BATCH_REGISTRY_ADDRESS") &&
+    has("CREDITCOIN_RPC_URL") &&
+    has("SETTLEMENT_CONTRACT_ADDRESS");
+
   return {
     missing,
     relayerReady,
     proofWorkerReady: relayerReady && missing.length === 0,
+    readOnly: readable && !relayerReady,
   };
 }
 

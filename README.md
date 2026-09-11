@@ -427,8 +427,10 @@ reward is accrued on Creditcoin, nothing walks it back.
 
 ## Known limitations
 
-- Payload signatures are stored but not yet cryptographically verified — the gateway checks
-  structure, freshness, and uniqueness only.
+- Contributor signatures are verified at the gateway — the EIP-191 signer is recovered from the
+  canonical signing message and must equal `contributorAddress` (`verifyMeasurementIntegrity`,
+  `SIGNATURE_MISMATCH`). They are not carried on-chain, so the destination chain still trusts the
+  relayer's admission decision rather than checking the signature itself.
 - Read direction only (Sepolia → Creditcoin). Write-ability has no public reference implementation
   and has not cleared third-party audit.
 - End-to-end latency is 9–13 minutes, dominated by the ~7 minute attestation wait. A live

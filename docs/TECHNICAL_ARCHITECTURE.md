@@ -24,7 +24,7 @@ accepts a measurement only when the Attestcoin BlockProver precompile has proven
 emitted it succeeded, and the emitter was our registry.
 
 The trust boundary is therefore the Sepolia event. Everything before it (gateway validation,
-signature structure, freshness, geohash precision) decides what gets *admitted*; everything after
+signature recovery, freshness, geohash precision) decides what gets *admitted*; everything after
 it (attestation, inclusion proof, emitter binding, replay protection, reward) decides what gets
 *paid*. Admission is gated — the registry accepts submissions from one relayer address, the one that
 carries the gateway's checks on-chain. Payment is permissionless — anyone holding a valid proof may
@@ -179,8 +179,9 @@ tRPC procedures under `signalproof.*`: `submitMeasurement`, `listMeasurements`, 
 `proofQueue`, `coverage`, `integrationStatus`, `contributorStats`, `attestationProgress`,
 `rewardsFor`, `onchain`. `submitMeasurement` validates with a zod schema (geohash `areaHash` capped
 at precision 6, 13-digit `timestampMs`, bounded metrics), recomputes `measurementRoot` from the
-canonical payload and rejects a mismatch, enforces freshness (60 s clock skew ahead, 15 min behind;
-the contract applies its own 24 h window at settlement),
+canonical payload and rejects a mismatch, recovers the EIP-191 signer of the canonical signing
+message and rejects one that is not `contributorAddress` (`SIGNATURE_MISMATCH`), enforces freshness
+(60 s clock skew ahead, 15 min behind; the contract applies its own 24 h window at settlement),
 and enforces `nonce` and `measurementRoot` uniqueness. Public reads never return `signature`,
 `nonce` or `sessionHash`.
 
@@ -264,7 +265,8 @@ variables set the gateway still accepts measurements as `SUBMITTED`, the worker 
 
 ## 9. Known limitations
 
-- Payload signatures are stored and structurally checked but not yet cryptographically verified.
+- Contributor signatures are verified at the gateway by signer recovery, but they are not carried
+  on-chain: the settlement contract trusts the relayer's admission decision, not the signature.
 - Read direction only. Attestcoin write-ability has no public reference implementation and has
   not cleared third-party audit.
 - Attested ≠ finalized: attestation runs 65–85 blocks ahead of Sepolia's `finalized` tag, so a

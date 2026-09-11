@@ -186,7 +186,7 @@
     <p class="lede">Everything before the Sepolia event decides what is <b>admitted</b>. Everything after it decides what is <b>paid</b>. The two never trust each other.</p>
     <div class="steps">
       <div class="step"><div class="t">Measure</div><div class="d">Browser client: median of 7 timed pings, a 3 MB download, the network class, and a geohash-6 area. No coordinate leaves the device.</div><div class="time">seconds</div></div>
-      <div class="step"><div class="t">Admit</div><div class="d">Gateway recomputes the measurement root, checks freshness and uniqueness, then the relayer commits the hash to <code>SourceBatchRegistry</code>.</div><div class="time">next 15 s tick</div></div>
+      <div class="step"><div class="t">Admit</div><div class="d">Gateway recomputes the measurement root, recovers the contributor's signature, checks freshness and uniqueness, then the relayer commits the hash to <code>SourceBatchRegistry</code>.</div><div class="time">next 15 s tick</div></div>
       <div class="step"><div class="t">Attest</div><div class="d">Creditcoin's attestation of Sepolia catches up to the block. The worker polls the attested height once per tick instead of blocking.</div><div class="time">7–9 min</div></div>
       <div class="step"><div class="t">Prove</div><div class="d">ProofBuilder returns the Merkle inclusion proof and the continuity proof for the transaction.</div><div class="time">7 siblings, 6 roots</div></div>
       <div class="step settle"><div class="t">Settle</div><div class="d"><code>SignalProofSettlement</code> verifies through the BlockProver precompile, applies its own checks, and accrues 0.001 CTC to the contributor.</div><div class="time">150,640 gas</div></div>
@@ -348,7 +348,7 @@
       <div>
         <div class="kicker">Known limitations</div>
         <ul class="plain todo">
-          <li>Payload signatures are stored and structurally checked, not yet cryptographically verified.</li>
+          <li>Contributor signatures are verified at the gateway by signer recovery, but not carried on-chain — settlement still trusts the relayer's admission decision.</li>
           <li>Read direction only, Sepolia to Creditcoin. Write-ability has no public reference implementation and has not cleared third-party audit.</li>
           <li>Attested is not finalized: attestation runs 65–85 blocks ahead of Sepolia's <code>finalized</code> tag. A deep reorg could in principle invalidate an attested height.</li>
           <li>End to end is 9–13 minutes. A live real-time demo is not possible; the demo pre-warms a proof.</li>
@@ -358,7 +358,7 @@
       <div>
         <div class="kicker">Next 90 days</div>
         <ul class="plain">
-          <li>Verify contributor signatures on the gateway and bind them to the on-chain <code>sessionHash</code>.</li>
+          <li>Carry the contributor signature on-chain so settlement can check it without trusting the relayer.</li>
           <li>Buyer API: area coverage snapshots with retention policy and authentication.</li>
           <li>Native measurement client with background sampling and device attestation.</li>
           <li>Sybil resistance: per-device rate limits, stake-weighted rewards, cell-level anomaly detection.</li>

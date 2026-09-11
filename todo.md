@@ -31,6 +31,7 @@ once; re-check the DoraHacks page before submitting.
 
 ## Not started (known limitations, stated in README)
 
-- [ ] Cryptographic verification of payload signatures — stored and structurally checked only.
+- [ ] Carry contributor signatures on-chain. They are verified at the gateway (signer recovery),
+      but the settlement contract still trusts the relayer's admission decision.
 - [ ] Native mobile client — the browser/PWA client is the measurement client.
 - [ ] Anti-Sybil scoring, platform attestation, retention policy.
