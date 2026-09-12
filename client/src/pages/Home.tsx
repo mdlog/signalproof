@@ -21,7 +21,6 @@ import {
   Grid2X2,
   Layers3,
   MapPin,
-  Menu,
   Network,
   Radio,
   Route,
@@ -41,8 +40,9 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import CoverageMap from "@/components/CoverageMap";
-import { CC3_TESTNET_CHAIN_ID, useWallet } from "@/hooks/useWallet";
-import WalletControl, { WrongChainBanner } from "@/components/WalletControl";
+import { CC3_TESTNET_CHAIN_ID } from "@/hooks/useWallet";
+import { useWalletContext } from "@/contexts/WalletContext";
+import AppShell, { ROUTE_NAV, sourceDocs, type ShellNavItem } from "@/components/AppShell";
 import ClaimReward from "@/components/ClaimReward";
 import { TrustBoundary } from "@/components/TrustBoundary";
 import {
@@ -58,8 +58,6 @@ import {
 } from "@/lib/measure";
 import { deriveMeasurementRoot, deriveSessionHash, makeNonce } from "@shared/measurement";
 import { qualityScore } from "@shared/quality";
-
-const sourceDocs = "https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure/attestcoin-sdk-usc-sdk";
 
 type Mode = "overview" | "measure" | "proofs" | "api";
 type TestState = "idle" | "sampling" | "submitted" | "attesting" | "settled" | "rejected";
@@ -191,7 +189,6 @@ type Zone = { name: string; code: string; quality: number; samples: number; stat
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("overview");
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [selectedZone, setSelectedZone] = useState("Kota Tua");
   const [testState, setTestState] = useState<TestState>("idle");
   const [copied, setCopied] = useState(false);
@@ -364,7 +361,7 @@ export default function Home() {
   // Real measurement                                                  //
   // ---------------------------------------------------------------- //
 
-  const wallet = useWallet();
+  const wallet = useWalletContext();
 
   const [reading, setReading] = useState<{
     latency?: LatencyResult;
@@ -701,28 +698,24 @@ export default function Home() {
     window.setTimeout(() => setCopied(false), 1700);
   };
 
-  const navItems: { id: Mode; label: string; icon: typeof Grid2X2 }[] = [
+  const navItems: ShellNavItem[] = [
     { id: "overview", label: "Coverage overview", icon: Grid2X2 },
     { id: "measure", label: "Run a test", icon: Smartphone },
-    { id: "proofs", label: "Proof queue", icon: ShieldCheck },
+    { id: "proofs", label: "Proof queue", icon: ShieldCheck, count: proofQueue.length },
     { id: "api", label: "Data products", icon: Layers3 },
+    ...ROUTE_NAV,
   ];
 
   return (
-    <main className="min-h-screen bg-[#F5F8FA] text-[#102A43]">
-      <div className="flex min-h-screen">
-        <aside className={`fixed inset-y-0 left-0 z-50 flex w-[268px] flex-col border-r border-[#DCE5EB] bg-[#102A43] px-5 py-5 text-white transition-transform lg:sticky lg:top-0 lg:translate-x-0 ${mobileNavOpen ? "translate-x-0" : "-translate-x-full"}`}>
-          <div className="flex items-center justify-between"><div className="flex items-center gap-3"><svg viewBox="0 0 36 36" className="h-9 w-9 rounded-lg bg-white p-1" role="img" aria-label="SignalProof mark"><rect x="5" y="14" width="4" height="14" rx="1.5" fill="#102A43" /><rect x="13" y="9" width="4" height="19" rx="1.5" fill="#102A43" /><rect x="21" y="4" width="4" height="24" rx="1.5" fill="#31B7A6" /><circle cx="29.5" cy="7" r="2.5" fill="#F06A59" /></svg><div><div className="font-display text-sm font-bold tracking-[0.12em]">SIGNALPROOF</div><div className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">connectivity intelligence</div></div></div><button onClick={() => setMobileNavOpen(false)} className="lg:hidden" aria-label="Close navigation">×</button></div>
-          <div className="mt-9 rounded-xl border border-white/10 bg-white/[.07] p-3"><div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#31B7A6]/20 text-[#62DCCB]"><Network className="h-4 w-4" /></span><div><div className="text-xs font-semibold">Operator workspace</div><div className="mt-0.5 text-[10px] text-white/45">{isLoading ? "connecting…" : isLive ? `CC3 Testnet · ${snap?.totals.contributors ?? 0} contributor${snap?.totals.contributors === 1 ? "" : "s"}` : "Chain not configured"}</div></div></div></div>
-          <div className="mt-9 font-mono text-[9px] uppercase tracking-[0.2em] text-white/35">Workspace</div>
-          <nav className="mt-3 space-y-1">{navItems.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => { setMode(item.id); setMobileNavOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors ${mode === item.id ? "bg-white text-[#102A43] shadow-lg" : "text-white/65 hover:bg-white/[.08] hover:text-white"}`}><Icon className="h-4 w-4" /><span>{item.label}</span>{item.id === "proofs" && proofQueue.length > 0 && <span className="ml-auto rounded-full bg-[#F06A59] px-1.5 py-0.5 text-[9px] font-bold text-white">{proofQueue.length}</span>}</button>; })}</nav>
-          <div className="mt-auto space-y-4"><div className="rounded-xl border border-white/10 bg-[#173956] p-4"><div className="flex items-start justify-between"><div><div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#62DCCB]">Protocol rail</div><div className="mt-2 text-sm font-semibold">{integration.data ? (integration.data.proofWorkerReady ? "Attestcoin ready" : integration.data.relayerReady ? "Relayer only — proof worker off" : integration.data.readOnly ? "Read-only — no relayer key" : "Chain not configured") : "Checking…"}</div></div><span className={`h-2 w-2 rounded-full ${integration.data?.proofWorkerReady ? "bg-[#62DCCB] shadow-[0_0_14px_#62DCCB]" : "bg-[#F4B95E]"}`} /></div><div className="mt-3 text-[11px] leading-relaxed text-white/55">{integration.data?.readOnly ? "Reading live settlements from both chains. Add relayer keys to .env to submit new measurements." : "CC3 Testnet verifies source-chain measurement proofs before reward settlement."}</div><a href={sourceDocs} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-[#62DCCB]">Read SDK docs <ExternalLink className="h-3 w-3" /></a></div><div className="flex items-center gap-2 px-2 text-[10px] text-white/35"><span className="h-2 w-2 rounded-full bg-[#62DCCB]" /> {isLive ? `Live · ${snap?.totals.settled ?? 0} settled on CC3` : "Prototype mode · fixture data"}</div></div>
-        </aside>
-
-        <section className="min-w-0 flex-1">
-          <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-[#DCE5EB] bg-[#F5F8FA]/90 px-5 backdrop-blur-xl lg:px-9"><div className="flex items-center gap-3"><button onClick={() => setMobileNavOpen(true)} className="rounded-lg border border-[#DCE5EB] p-2 lg:hidden" aria-label="Open navigation"><Menu className="h-4 w-4" /></button><div><div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#7B8F9D]">SignalProof / Operator console</div><div className="mt-1 font-display text-lg font-semibold">{mode === "overview" ? "Coverage overview" : mode === "measure" ? "Run a measurement" : mode === "proofs" ? "Proof queue" : "Data products"}</div></div></div><div className="flex items-center gap-2 sm:gap-3"><Badge className="hidden rounded-full border border-[#F4B95E]/40 bg-[#FFF0D2] text-[#9A6517] sm:flex"><span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-[#F4B95E]" /> {isLive ? `CC3 TESTNET · LIVE` : "CC3 TESTNET"}</Badge><WalletControl wallet={wallet} /></div></header>
-
-          <WrongChainBanner wallet={wallet} />
+    <AppShell
+      title={mode === "overview" ? "Coverage overview" : mode === "measure" ? "Run a measurement" : mode === "proofs" ? "Proof queue" : "Data products"}
+      nav={navItems}
+      activeId={mode}
+      onSelect={(id) => setMode(id as Mode)}
+      live={{ isLoading, isLive, contributors: snap?.totals.contributors ?? 0, settled: snap?.totals.settled ?? 0 }}
+      integration={integration.data}
+    >
+      <>
             <div className="mx-auto max-w-[1480px] px-5 py-7 lg:px-9 lg:py-9">
             <div className="mb-7 flex flex-col justify-between gap-5 xl:flex-row xl:items-end"><div><div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.19em] text-[#F06A59]"><span className="h-px w-7 bg-[#F06A59]" /> Live decision surface</div><h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-[1.04] tracking-[-0.04em] sm:text-5xl">Know where the signal<br /><span className="text-[#147A70]">breaks before users do.</span></h1><p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#6C8291]">Smartphone measurements become area-level connectivity evidence for operators, venues, and public infrastructure teams.</p></div><div className="flex items-center gap-3"><div className="rounded-xl border border-[#DCE5EB] bg-white px-3 py-2 text-right"><div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#8EA0AC]">Last sync</div><div className="mt-1 text-xs font-semibold text-[#426176]">{isLive ? (onchain.isFetching ? "syncing…" : lastSync) : "—"}</div></div><Button onClick={() => setMode("measure")} className="gap-2 rounded-xl bg-[#F06A59] text-white shadow-[0_8px_20px_rgba(240,106,89,.2)] hover:bg-[#dc5b4b]"><Smartphone className="h-4 w-4" /> Run a test</Button></div></div>
 
@@ -744,8 +737,6 @@ export default function Home() {
 
             {mode === "api" && <div className="space-y-5"><Card className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="flex flex-col justify-between gap-5 p-6 sm:flex-row sm:items-center"><div><Badge className="rounded-full bg-[#DDF7F1] text-[#147A70]">BUYER VIEW</Badge><h2 className="mt-3 font-display text-2xl font-bold">Area data products</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#73879A]">Package verified measurements into coverage snapshots that an ISP, venue, or public program can query without receiving personal movement trails.</p></div><Button onClick={() => { if (zones[0]) void openBrief(zones[0].code); }} disabled={zones.length === 0} title={zones.length === 0 ? "No measured area yet." : `Brief for ${zones[0].code}, the most-sampled area`} className="gap-2 rounded-xl bg-[#102A43] text-white hover:bg-[#173956]"><Sparkles className="h-4 w-4" /> Create area brief</Button></CardContent></Card><div className="grid gap-5 lg:grid-cols-3">{zones.map(zone => <Card key={zone.code} className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="p-5"><div className="flex items-start justify-between"><div><div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#A0AFBB]">zone/{zone.code}</div><h3 className="mt-2 font-display text-xl font-bold">{zone.name}</h3></div><div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${zone.color}18`, color: zone.color }}><Wifi className="h-5 w-5" /></div></div><div className="mt-6 flex items-end justify-between"><div><div className="font-display text-4xl font-bold" style={{ color: zone.color }}>{zone.quality}</div><div className="text-xs text-[#8EA0AC]">quality score</div></div><div className="text-right text-xs text-[#73879A]"><div>{zone.samples} sample{zone.samples === 1 ? "" : "s"}</div><div className="mt-1">{zone.lastUpdatedMs ? `updated ${relativeTime(Math.floor(zone.lastUpdatedMs / 1000))}` : "no timestamp"}</div></div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-[#EDF2F5]"><div className="h-full rounded-full" style={{ width: `${zone.quality}%`, backgroundColor: zone.color }} /></div><button onClick={() => copyText(zone.code)} className="mt-5 flex w-full items-center justify-between rounded-xl border border-[#DCE5EB] px-3 py-2 text-xs font-semibold text-[#426176] hover:bg-[#F5F8FA]"><span>Copy area geohash</span>{copied ? <Check className="h-3.5 w-3.5 text-[#147A70]" /> : <Copy className="h-3.5 w-3.5" />}</button><button onClick={() => { void openBrief(zone.code); }} className="mt-2 flex w-full items-center justify-between rounded-xl bg-[#102A43] px-3 py-2 text-xs font-semibold text-white hover:bg-[#173956]"><span>Area brief</span><Sparkles className="h-3.5 w-3.5" /></button></CardContent></Card>)}</div><Card className="rounded-xl border-[#DCE5EB] bg-[#F0F8F8]"><CardContent className="flex flex-col gap-3 p-6 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#147A70]"><Activity className="h-4 w-4" /></div><div><div className="font-semibold text-[#102A43]">{isLive ? "Area cards and the read-only buyer API are live" : "Data API is prototype-only"}</div><p className="mt-1 text-xs leading-relaxed text-[#5E7E7C]">{isLive ? `The ${zones.length} area card${zones.length === 1 ? "" : "s"} above are read live from ${snap?.totals.submitted ?? 0} on-chain measurement${snap?.totals.submitted === 1 ? "" : "s"}. Query them at /v1/areas and /v1/areas/{geohash}; every sample carries its Sepolia commitment and Creditcoin settlement. Buyer authentication and a retention policy are not built.` : "Sample responses illustrate the buyer surface. No chain is configured."}</p><a href="/v1/areas" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#147A70]">Open /v1/areas <ExternalLink className="h-3 w-3" /></a></div></div><a href={sourceDocs} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[#147A70]">Read protocol docs <ExternalLink className="h-3.5 w-3.5" /></a></CardContent></Card></div>}
           </div>
-        </section>
-      </div>
       <Dialog open={brief !== null} onOpenChange={(open) => { if (!open) setBrief(null); }}>
         <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden rounded-xl p-0">
           <DialogHeader className="border-b border-[#DCE5EB] px-6 pb-4 pt-6">
@@ -765,6 +756,7 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
-    </main>
+      </>
+    </AppShell>
   );
 }

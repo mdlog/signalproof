@@ -4,13 +4,28 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { WalletProvider } from "./contexts/WalletContext";
 import Home from "./pages/Home";
+import VerifyPage from "./pages/VerifyPage";
+import AreaPage from "./pages/AreaPage";
+import ContributorsPage from "./pages/ContributorsPage";
+import ContributorPage from "./pages/ContributorPage";
+import OpsPage from "./pages/OpsPage";
 
+/**
+ * Real routes, so a proof, an area or a contributor has a URL that can be shared. The console at
+ * `/` keeps its own modes; everything else is a page inside the same shell.
+ */
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/verify"} component={VerifyPage} />
+      <Route path={"/verify/:hash"} component={VerifyPage} />
+      <Route path={"/area/:geohash"} component={AreaPage} />
+      <Route path={"/contributors"} component={ContributorsPage} />
+      <Route path={"/contributors/:address"} component={ContributorPage} />
+      <Route path={"/ops"} component={OpsPage} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -18,21 +33,15 @@ function Router() {
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <WalletProvider>
+            <Router />
+          </WalletProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
