@@ -22,7 +22,8 @@
     "deploy:fund": "./contracts/deploy.sh fund",
     "deploy:all": "./contracts/deploy.sh all",
     "e2e:live": "tsx server/signalproof/e2eLive.ts",
-    "e2e:batch": "tsx server/signalproof/e2eBatch.ts"
+    "e2e:batch": "tsx server/signalproof/e2eBatch.ts",
+    "e2e:surface": "tsx server/signalproof/e2eSurface.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
