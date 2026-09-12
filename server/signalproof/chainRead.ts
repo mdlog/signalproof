@@ -41,6 +41,18 @@ const INITIAL_CHUNK = MAX_LOOKBACK_BLOCKS;
 let cached: { at: number; value: OnchainSnapshot } | null = null;
 const CACHE_TTL_MS = 15_000;
 
+export type SnapshotHealth = {
+  /** Last time a full read of both chains succeeded and was accepted. */
+  lastSuccessAt: number | null;
+  /** The most recent read failure, or null once a later read succeeded. */
+  lastError: string | null;
+  /** Reads that came back smaller than what was already being served and were refused. */
+  emptyResultsRejected: number;
+};
+
+/** What the ops panel reads about the chain reader itself. */
+export const snapshotHealth: SnapshotHealth = { lastSuccessAt: null, lastError: null, emptyResultsRejected: 0 };
+
 export type OnchainMeasurement = {
   measurementRoot: string;
   areaHash: string;
@@ -505,6 +517,14 @@ export async function getOnchainSnapshot(force = false): Promise<OnchainSnapshot
     };
 
     const kept = reconcileSnapshot(cached?.value ?? null, snapshot);
+    if (kept !== snapshot) {
+      // The RPC answered politely with fewer logs than the chain holds — the publicnode symptom.
+      snapshotHealth.emptyResultsRejected += 1;
+      snapshotHealth.lastError = "read returned fewer logs than already served; kept the previous snapshot";
+    } else {
+      snapshotHealth.lastSuccessAt = Date.now();
+      snapshotHealth.lastError = null;
+    }
     cached = { at: Date.now(), value: kept };
     return kept;
   } catch (error) {
@@ -512,6 +532,7 @@ export async function getOnchainSnapshot(force = false): Promise<OnchainSnapshot
     // the empty state and says why; with a good snapshot already in hand it keeps serving that,
     // and the next tick tries again.
     const message = error instanceof Error ? error.message : String(error);
+    snapshotHealth.lastError = message.slice(0, 200);
     const kept = reconcileSnapshot(cached?.value ?? null, emptySnapshot(message.slice(0, 200)));
     if (kept.error === null) cached = { at: Date.now(), value: kept };
     return kept;

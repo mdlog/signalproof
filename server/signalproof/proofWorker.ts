@@ -39,6 +39,25 @@ const BATCH_SIZE = 10;
 let timer: NodeJS.Timeout | null = null;
 let ticking = false;
 
+export type WorkerHealth = {
+  mode: "full" | "relay-only";
+  running: boolean;
+  lastTickAt: number | null;
+  lastResult: { relayed: number; settled: number; recovered: number } | null;
+  lastError: string | null;
+  consecutiveFailures: number;
+};
+
+/** What the ops panel reads. Updated only by the interval below, so it reflects real ticks. */
+export const workerHealth: WorkerHealth = {
+  mode: "full",
+  running: false,
+  lastTickAt: null,
+  lastResult: null,
+  lastError: null,
+  consecutiveFailures: 0,
+};
+
 /**
  * Record a failure and decide whether the row can be retried.
  *
@@ -527,11 +546,18 @@ export function startProofWorker(): boolean {
     );
   }
 
+  workerHealth.mode = readiness.settleMode;
+  workerHealth.running = true;
+
   timer = setInterval(() => {
     if (ticking) return; // never overlap ticks
     ticking = true;
     tick()
       .then(({ relayed, settled, recovered }) => {
+        workerHealth.lastTickAt = Date.now();
+        workerHealth.lastResult = { relayed, settled, recovered };
+        workerHealth.lastError = null;
+        workerHealth.consecutiveFailures = 0;
         if (relayed || settled || recovered) {
           console.log(
             `[SignalProof] tick — relayed ${relayed}, settled ${settled}` +
@@ -539,7 +565,12 @@ export function startProofWorker(): boolean {
           );
         }
       })
-      .catch((error) => console.error("[SignalProof] tick failed:", toRejectionCode(error)))
+      .catch((error) => {
+        workerHealth.lastTickAt = Date.now();
+        workerHealth.lastError = toRejectionCode(error);
+        workerHealth.consecutiveFailures += 1;
+        console.error("[SignalProof] tick failed:", toRejectionCode(error));
+      })
       .finally(() => {
         ticking = false;
       });
@@ -557,4 +588,5 @@ export function stopProofWorker(): void {
     clearInterval(timer);
     timer = null;
   }
+  workerHealth.running = false;
 }

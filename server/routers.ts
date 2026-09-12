@@ -26,6 +26,7 @@ import { getProofSummary } from "./signalproof/proofRead";
 import { resolveVerification } from "./signalproof/verify";
 import { areaView } from "./signalproof/areas";
 import { listContributors } from "./signalproof/contributors";
+import { getOpsStatus } from "./signalproof/ops";
 import { areaTrend } from "./signalproof/areaExport";
 
 /**
@@ -306,6 +307,9 @@ export const appRouter = router({
     onchain: publicProcedure
       .input(z.object({ force: z.boolean().default(false) }).optional())
       .query(({ input }) => getOnchainSnapshot(input?.force ?? false)),
+
+    /** Relayer balances, pool runway, worker and chain-reader health. Read-only, no secrets. */
+    ops: publicProcedure.query(() => getOpsStatus()),
 
     /** Every reward address on chain, ranked by settled measurements. */
     contributors: publicProcedure.query(async () => listContributors(await getOnchainSnapshot())),
