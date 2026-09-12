@@ -236,8 +236,10 @@ for a 75,000,000-gas CC3 block; 800 does not fit.
 | Relayer + proof worker | **Complete.** Non-blocking 15 s tick, backoff, terminal-vs-transient error classification. |
 | Gateway (tRPC + MySQL) | **Complete.** Validation, freshness, duplicate protection, SQL-side proof queue, coverage aggregates. |
 | Attestcoin read path | **Verified live.** `pnpm smoke` passes from a clean machine. |
-| Dashboard | **Live.** Reads the deployed contracts directly — no database required. Every proof-queue row can open the live Attestcoin proof ("View proof"); pending rows can be settled from the contributor's own wallet. |
-| Buyer API | **Live, read-only.** `GET /v1/areas`, `/v1/areas/{geohash}`, `/v1/areas/{geohash}/brief` — aggregates and every sample with its Sepolia commitment and Creditcoin settlement. No authentication or retention policy yet. |
+| Dashboard | **Live.** Reads the deployed contracts directly — no database required. Every proof-queue row can open the live Attestcoin proof ("View proof"); pending rows can be settled from the contributor's own wallet. Route pages: `/verify/<hash>`, `/area/<geohash>`, `/contributors`, `/contributors/<address>`, `/ops`. |
+| Buyer API | **Live, metered.** `GET /v1/areas` (catalog, free); `/v1/areas/{geohash}`, `/brief`, `/export.csv`, `/export.json` behind a key bought with CTC that lands in the reward pool (`/v1/access`); `/v1/verify/{hash}` and `/badge.svg` free. First real purchase on chain: [`0xed00a0…8d30`](https://creditcoin-testnet.blockscout.com/tx/0xed00a0b6dd4ee0b4d4760665b0bedf3cdb7279dd0b5ded0124a5925021e08d30). No retention policy yet. |
+| Ops panel | **Live** at `/ops`: relayer balances on both chains, pool balance and runway in settlements, worker last tick, shrunken RPC reads refused, attestation lag. |
+| Auto-measure | **Built, browser-side.** A 10-minute cycle around the same `runTest`; every cycle is wallet-signed, unsigned readings are discarded after 14 minutes, settlements raise a browser notification. |
 | Anti-spam | **Policy only.** 3 measurements per contributor per cell per 10 minutes at the gateway, in-process. Not a Sybil defence. |
 | Device measurement | **Real.** Latency, throughput, coarse area and network class measured in the browser; wallet-gated. A native app is not started — the browser client is the measurement client. |
 
@@ -292,11 +294,87 @@ curl -s https://<host>/v1/areas/qqguw6             # one cell: aggregates + ever
 curl -s https://<host>/v1/areas/qqguw6/brief       # the same as a markdown brief
 ```
 
-Each sample carries `sourceTxHash` and `creditcoinTxHash` with explorer links, so a buyer can
-verify any number in the aggregate down to the transaction that proved it. The dashboard's
-"Create area brief" button renders `/brief` for the most-sampled cell. The quality score the API
-reports is the one the dashboard shows (`shared/quality.ts`): 50 % latency penalty up to 200 ms,
-50 % throughput credit up to 100 Mbps. There is no authentication and no retention policy yet.
+Each sample carries `sourceTxHash`, `creditcoinTxHash` and a `verifyUrl`, so a buyer can verify
+any number in the aggregate down to the transaction that proved it. The dashboard's "Create area
+brief" button renders `/brief` for the most-sampled cell. The quality score the API reports is the
+one the dashboard shows (`shared/quality.ts`): 50 % latency penalty up to 200 ms, 50 % throughput
+credit up to 100 Mbps. There is no retention policy yet.
+
+### The buyer pays the contributors: a key is a CTC payment into the reward pool
+
+The per-area endpoints are metered. A key costs `BUYER_ACCESS_PRICE_CTC` (default 0.05 CTC) for
+`BUYER_ACCESS_DAYS` (default 30), and the payment is a plain transfer to `SignalProofSettlement` —
+its `receive()` credits the reward pool and emits `Funded`. So the buyer's money is, byte for byte,
+what contributors later `claim()`. That closes the DePIN loop with no new contract.
+
+```
+buyer wallet ──0.05 CTC──► SignalProofSettlement.receive()   pool 4.997 → 5.047 CTC
+             ──sign "SignalProof API access\nTransaction: <tx>\nAddress: <me>"──► POST /v1/access/redeem
+             ◄── sp1_<expiry>_<txHash>_<hmac>                    Authorization: Bearer …
+```
+
+The server checks, against the CC3 RPC, that the transaction paid the settlement contract at least
+the price and succeeded, and that the redeemer's EIP-191 signature recovers to the transaction's
+sender — otherwise anyone reading a `Funded` event on Blockscout could redeem someone else's
+payment. The key is an HMAC over `txHash|expiry` with `BUYER_ACCESS_SECRET`; nothing is stored, so
+the same payment always yields the same key ("I lost my key" is "sign again") and there is no
+replay to defend. The cost is that a single key cannot be revoked — only the secret can be rotated.
+Without a secret configured the gate is open and the purchase card hides itself, so a keyless clone
+behaves exactly as before.
+
+**What is sold is the service, not the data.** Every measurement is public on two chains, and the
+dashboard, the catalog, the verifier and the badges stay free. The metered endpoints are the
+aggregation, the provenance join, the brief, the exports and the uptime behind them — the same
+thing a drive-test vendor charges for, minus the trust.
+
+The first purchase on chain: [`0xed00a0…8d30`](https://creditcoin-testnet.blockscout.com/tx/0xed00a0b6dd4ee0b4d4760665b0bedf3cdb7279dd0b5ded0124a5925021e08d30),
+block 5,474,614 — 0.05 CTC into the pool, key valid to 2026-10-12, and a `200` on
+`/v1/areas/qqguw6` with it where a bare call gets `401 { error: "ACCESS_REQUIRED", price, howTo }`.
+
+### Anyone can verify any hash
+
+`/verify/<hash>` takes a measurement root, the Sepolia transaction that committed it, or the
+Creditcoin transaction that settled it, and shows the four-step rail — commitment, attestation,
+proof, settlement — each with the transaction that proves it, the live attestation countdown while
+pending, and the Attestcoin proof (Merkle siblings, continuity roots, the exact `execute()`
+calldata) once one exists. A hash outside the scanned window is reported as not found, never as
+invalid. `GET /v1/verify/<hash>` is the same answer as JSON. Verification is never metered.
+
+### An area is a page, an export and a badge
+
+`/area/<geohash>` places the cell on the map, charts quality over time, lists every sample with a
+verify link, and offers CSV (`/v1/areas/<geohash>/export.csv`), JSON (`/export.json`) and the
+brief — all behind the key — plus a free, embeddable badge:
+
+```html
+<a href="https://<host>/area/qqguw6"><img src="https://<host>/v1/areas/qqguw6/badge.svg"></a>
+```
+
+The badge reads `SignalProof · qqguw6 | quality 86 · 9 samples · verified on Creditcoin`, coloured
+by the same thresholds as the map, cached for a minute. An unmeasured cell gets a grey "no data".
+
+### Contributors are a network, and operations are visible
+
+`/contributors` ranks every reward address by settled measurements, with cells covered and CTC
+accrued; `/contributors/<address>` is one address's history — measurements, earned, claimed
+(`RewardClaimed` events), unclaimed — with the claim button when the connected wallet is that
+address. The header address links to the connected wallet's own profile.
+
+`/ops` reads what it takes to keep the rail running: relayer balances on both chains, the pool and
+its **runway** (⌊pool ÷ reward⌋ settlements — 5,047 at writing), the proof worker's last tick and
+consecutive failures, how many shrunken RPC reads the chain reader has refused (the publicnode
+symptom), and the attestation lag. Every probe is its own try/catch; a dead RPC is amber on its row,
+never a blank panel.
+
+### Auto-measure
+
+The measure page has a toggle: every 10 minutes while the app is open, the same `runTest` the
+button calls. Each cycle **asks the wallet to sign** — the registry recovers the contributor's
+signature on-chain, so there is no silent mode, and that is the design rather than a gap. A
+reading not signed within 14 minutes is discarded and logged as skipped (the gateway refuses
+anything older than 15). The cycle log lives in `localStorage`; a screen wake-lock is requested
+where the browser allows it; a settled measurement raises a browser notification. Background tabs
+are throttled, so the honest instruction on screen is: install the PWA and keep it in front.
 
 ### `areaHash` is a geohash, and that is what makes the map real
 
@@ -476,6 +554,16 @@ server/signalproof/              Server-side only — the SDK is CommonJS with n
   worker.ts                        pure helpers: transitions, backoff, error classification, gas
   smoke.ts                         live read-path check
   abi.ts / abi.test.ts             hand-written ABIs, pinned against the compiled artifacts
+  access.ts                        buyer keys: purchase verification on CC3, stateless HMAC keys, the gate
+  verify.ts                        any hash -> its joined record across both chains
+  areas.ts / areaExport.ts         area views; trend, CSV/JSON export, badge
+  contributors.ts / ops.ts         leaderboard rows; relayer, pool, worker and RPC health
+  buyerApi.ts                      the /v1 HTTP surface
+
+client/src/pages/                one file per route: Home (console), VerifyPage, AreaPage,
+                                 ContributorsPage, ContributorPage, OpsPage
+client/src/components/AppShell   sidebar, header, wallet control — shared by every route
+client/src/hooks/useMeasurementRun.ts  the measurement sequence, shared by the button and auto-measure
 
 server/routers.ts                tRPC gateway
 drizzle/schema.ts                users + measurements
@@ -525,7 +613,10 @@ reward is accrued on Creditcoin, nothing walks it back.
   contributor's signature is verified on-chain, so it can no longer forge attribution.
 - Anti-Sybil is a rate limit (3 per contributor per cell per 10 minutes, in-process), not a
   defence: device attestation and stake-weighted rewards are not built.
-- The buyer API has no authentication and no retention policy.
+- The buyer API is metered by stateless keys: a key cannot be revoked individually (rotating
+  `BUYER_ACCESS_SECRET` revokes all), and there is no retention policy.
+- Auto-measure needs a wallet signature per cycle, by design; a silent mode would need an on-chain
+  delegation registry, which is not built.
 - Read direction only (Sepolia → Creditcoin). Write-ability has no public reference implementation
   and has not cleared third-party audit.
 - End-to-end latency is 9–13 minutes, dominated by the ~7 minute attestation wait. A live

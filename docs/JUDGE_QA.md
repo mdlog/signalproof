@@ -111,6 +111,22 @@ policy are not built, and the screen says exactly that.
 
 ## The next tier (asked by the specialist judge)
 
+**Q. You put a paywall on public data?**
+No — the data is public on two chains and stays free here: the dashboard, the catalog
+(`/v1/areas`), the verifier (`/verify/<hash>`, `/v1/verify/<hash>`) and the badges. What is metered
+is the service: the provenance join, per-area samples, the brief, CSV/JSON exports, uptime. And the
+payment is not ours to keep — it is a transfer into `SignalProofSettlement`'s reward pool, the
+balance contributors `claim()` from. The first purchase is on chain:
+[`0xed00a0…8d30`](https://creditcoin-testnet.blockscout.com/tx/0xed00a0b6dd4ee0b4d4760665b0bedf3cdb7279dd0b5ded0124a5925021e08d30),
+pool 4.997 → 5.047 CTC. Keys are HMACs over the payment, issued only to a signer who proves they
+sent it; nothing is stored, so there is no key database to leak and no replay to defend.
+
+**Q. Can auto-measure run silently in the background?**
+No, and it should not. Every measurement is signed by the contributor's wallet, and the registry
+recovers that signature on-chain — it is the attribution. A silent mode would need a delegation
+registry (session keys) on Sepolia, which we have not built or audited. The loop measures every
+10 minutes and asks for the signature; an unsigned reading is discarded after 14 minutes.
+
 **11. Why is the marginal batch cost rising with batch size? Batching is supposed to get cheaper.**
 The decoder allocates memory it never reclaims, so the quadratic memory-expansion term takes over:
 44,892 gas per extra entry at n=10, 51,015 at n=50, 71,165 at n=200, against 77,828 for a batch of

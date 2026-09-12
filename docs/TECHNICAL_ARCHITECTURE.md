@@ -210,10 +210,38 @@ summarised for the dashboard and with `execute()`'s calldata for a wallet.
 
 ### Buyer API v1 (`server/signalproof/areas.ts`, `buyerApi.ts`)
 
-`GET /v1/areas`, `GET /v1/areas/{area}` and `GET /v1/areas/{area}/brief` are read-only views of
-the on-chain snapshot: per-cell aggregates (with the decoded geohash cell), and every sample with
-its Sepolia commitment and Creditcoin settlement as explorer links. The brief is markdown a buyer
-can forward. No authentication and no retention policy yet.
+`GET /v1/areas` (free catalog), `GET /v1/areas/{area}`, `/brief`, `/export.csv` and
+`/export.json` (metered) are read-only views of the on-chain snapshot: per-cell aggregates (with
+the decoded geohash cell), and every sample with its Sepolia commitment, Creditcoin settlement and
+`verifyUrl`. `GET /v1/verify/{hash}` and `GET /v1/areas/{area}/badge.svg` are free. No retention
+policy yet.
+
+### Buyer access (`server/signalproof/access.ts`)
+
+A key is bought by sending `BUYER_ACCESS_PRICE_CTC` to `SignalProofSettlement` on CC3 — its
+`receive()` credits the reward pool — and redeemed with `POST /v1/access/redeem { txHash, address,
+signature }`. `verifyPurchase` checks on chain that the transaction paid the settlement contract at
+least the price and succeeded, and that the EIP-191 signature over
+`"SignalProof API access\nTransaction: <tx>\nAddress: <addr>"` recovers to `tx.from`. The key
+`sp1_<expiryUnix>_<txHash>_<hmac16>` is HMAC-SHA256(`BUYER_ACCESS_SECRET`, `txHash|expiry`), so
+verification is offline and nothing is stored; the same payment always yields the same key. The
+gate (`requireAccess`) is open when no secret is configured. Metered is the service, not the data.
+
+### Verifier, contributors, ops (`verify.ts`, `contributors.ts`, `ops.ts`, `areaExport.ts`)
+
+Pure functions over the snapshot: `resolveVerification` matches any of a measurement's three hashes;
+`listContributors` groups by reward address and ranks by settled count; `areaTrend`/`areaCsv`/
+`areaJson`/`badgeSvg` derive the area deliverables. `getOpsStatus` adds live probes — relayer
+balances, pool runway, `workerHealth` (updated by the proof worker's interval), `snapshotHealth`
+(updated by the chain reader, including how many shrunken reads `reconcileSnapshot` refused) and
+the attestation lag — each in its own try/catch.
+
+### Route pages (`client/src/pages/`, `client/src/components/AppShell.tsx`)
+
+`wouter` routes `/verify/:hash`, `/area/:geohash`, `/contributors[/:address]`, `/ops` share one
+shell (sidebar, header, wallet control) with the console at `/`. The wallet connection is a single
+context. `useMeasurementRun` holds the measurement sequence so the button and the auto-measure loop
+run identical code; auto-measure is a 10-minute timer with a 14-minute signing deadline.
 
 ### Store (`server/signalproof/store.ts`, `drizzle/schema.ts`)
 
@@ -311,8 +339,9 @@ variables set the gateway still accepts measurements as `SUBMITTED`, the worker 
 - Attested ≠ finalized: attestation runs 65–85 blocks ahead of Sepolia's `finalized` tag, so a
   deep reorg could in principle invalidate an attested height.
 - End-to-end latency is 9–13 minutes, dominated by attestation. A demo pre-warms a proof.
-- Anti-Sybil is a per-cell rate limit only; platform attestation, stake-weighted rewards, buyer
-  authentication and a retention policy are not implemented.
+- Anti-Sybil is a per-cell rate limit only; platform attestation and stake-weighted rewards are
+  not implemented. Buyer keys are stateless — no per-key revocation — and there is no retention
+  policy.
 
 ## References
 
