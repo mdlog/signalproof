@@ -55,9 +55,9 @@ type Eip1193Provider = {
 };
 
 /** EIP-1193 error codes we can say something useful about. */
-function describeError(err: unknown): string {
+function describeError(err: unknown, action = "the connection request"): string {
   const code = (err as { code?: number })?.code;
-  if (code === 4001) return "You rejected the connection request.";
+  if (code === 4001) return action === "the connection request" ? "You rejected the connection request." : `You declined ${action}.`;
   if (code === -32002) return "A connection request is already open in your wallet. Check it.";
   if (code === 4900) return "Your wallet is disconnected from all chains.";
   if (code === 4901) return "Your wallet is not connected to the requested chain.";
@@ -68,6 +68,17 @@ function describeError(err: unknown): string {
 function injected(): Eip1193Provider | null {
   const eth = (globalThis as { ethereum?: Eip1193Provider }).ethereum;
   return eth ?? null;
+}
+
+/**
+ * Dev-only seam for end-to-end tests: a provider the harness sets on the window wins discovery,
+ * so a browser with a real wallet installed can still be driven by a scripted one. Compiled out
+ * of production builds — `import.meta.env.DEV` is a build-time constant.
+ */
+function testProvider(): Eip1193Provider | null {
+  if (!import.meta.env.DEV) return null;
+  const test = (globalThis as { __signalproofTestProvider?: Eip1193Provider }).__signalproofTestProvider;
+  return test?.request ? test : null;
 }
 
 export function useWallet() {
@@ -82,6 +93,8 @@ export function useWallet() {
 
   /** Discover a provider: EIP-6963 first, then the legacy window.ethereum. */
   const discover = useCallback(async (): Promise<Eip1193Provider | null> => {
+    const test = testProvider();
+    if (test) return test;
     try {
       const found = await BrowserProvider.discover({ timeout: 400 });
       if (found) {
@@ -165,7 +178,8 @@ export function useWallet() {
   }, [discover]);
 
   const connect = useCallback(async () => {
-    const provider = providerRef.current ?? (await discover());
+    // A test provider set after mount must still win: the click is the moment it is looked for.
+    const provider = testProvider() ?? providerRef.current ?? (await discover());
     if (!provider) {
       setState((s) => ({ ...s, status: "unsupported" }));
       return;
@@ -334,7 +348,7 @@ export function useWallet() {
         })) as string;
         return { ok: true, txHash };
       } catch (err) {
-        return { ok: false, error: describeError(err) };
+        return { ok: false, error: describeError(err, "the payment") };
       }
     },
     [discover, state.address],
@@ -352,7 +366,7 @@ export function useWallet() {
         const signature = (await provider.request({ method: "personal_sign", params: [message, state.address] })) as string;
         return { ok: true, signature };
       } catch (err) {
-        return { ok: false, error: describeError(err) };
+        return { ok: false, error: describeError(err, "to sign") };
       }
     },
     [discover, state.address],
@@ -395,7 +409,7 @@ export function useWallet() {
         })) as string;
         return { ok: true, signature };
       } catch (err) {
-        return { ok: false, error: describeError(err) };
+        return { ok: false, error: describeError(err, "to sign the measurement") };
       }
     },
     [discover, state.address],

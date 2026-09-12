@@ -290,12 +290,29 @@ function emptySnapshot(error: string | null): OnchainSnapshot {
  * AWAITING_ATTESTATION. That join is the honest definition of the pipeline's state — it reflects
  * what the chains actually agree on, not what a local queue believes.
  */
+let inflight: Promise<OnchainSnapshot> | null = null;
+
 export async function getOnchainSnapshot(force = false): Promise<OnchainSnapshot> {
   if (!isConfigured()) {
     return emptySnapshot("Chain addresses or RPC URLs are not configured");
   }
   if (!force && cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.value;
 
+  // One read at a time, and stale-while-revalidate. The public CC3 endpoint takes 5–8 s per
+  // eth_getLogs, so a full read is tens of seconds; five pages polling at once used to start five
+  // of them in parallel and all wait. Now a single read is shared, and a caller that already has a
+  // snapshot gets it at once while the refresh runs behind it — except `force`, which is the
+  // worker asking for the truth and waits for it.
+  if (!inflight) {
+    inflight = readSnapshot().finally(() => {
+      inflight = null;
+    });
+  }
+  if (!force && cached) return cached.value;
+  return inflight;
+}
+
+async function readSnapshot(): Promise<OnchainSnapshot> {
   try {
     const sepolia = new JsonRpcProvider(ENV.sepoliaRpcUrl, undefined, { staticNetwork: true });
     const creditcoin = new JsonRpcProvider(ENV.creditcoinRpcUrl, undefined, { staticNetwork: true });
