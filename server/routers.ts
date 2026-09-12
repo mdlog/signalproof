@@ -24,6 +24,8 @@ import { getAddress, verifyMessage } from "ethers";
 import { MEASUREMENT_RATE_LIMIT, measurementRateLimit } from "./signalproof/rateLimit";
 import { getProofSummary } from "./signalproof/proofRead";
 import { resolveVerification } from "./signalproof/verify";
+import { areaView } from "./signalproof/areas";
+import { areaTrend } from "./signalproof/areaExport";
 
 /**
  * Clock skew we tolerate on a client-supplied timestamp.
@@ -303,6 +305,14 @@ export const appRouter = router({
     onchain: publicProcedure
       .input(z.object({ force: z.boolean().default(false) }).optional())
       .query(({ input }) => getOnchainSnapshot(input?.force ?? false)),
+
+    /** One cell with every sample, its provenance and its quality trend. The dashboard's own read; the metered copy is /v1. */
+    area: publicProcedure
+      .input(z.object({ areaHash: z.string().regex(/^[a-z0-9-]{1,32}$/) }))
+      .query(async ({ input }) => {
+        const view = areaView(await getOnchainSnapshot(), input.areaHash);
+        return view ? { ...view, trend: areaTrend(view) } : null;
+      }),
 
     /**
      * One hash — a measurement root, a Sepolia commitment or a Creditcoin settlement — resolved

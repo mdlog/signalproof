@@ -131,7 +131,7 @@ export default function CoverageMap({ zones, isLive, onZoneClick }: Props) {
   }, [mapped, onZoneClick]);
 
   return (
-    <div className="relative h-[380px] overflow-hidden rounded-[16px] border border-[#DCE5EB]">
+    <div className="relative isolate z-0 h-[380px] overflow-hidden rounded-[16px] border border-[#DCE5EB]">
       <div ref={containerRef} className="absolute inset-0 z-0" aria-label="Coverage map" />
 
       {/* Panel chrome sits above the tiles. z-[400] clears Leaflet's own pane stack. */}

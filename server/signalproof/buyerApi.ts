@@ -7,6 +7,9 @@
  *   GET  /v1/areas/:area           one cell with every sample and its provenance    key
  *   GET  /v1/areas/:area/brief     the same, as a markdown brief a buyer can forward key
  *   GET  /v1/verify/:hash          a root or transaction hash across both chains       free
+ *   GET  /v1/areas/:area/export.csv  every sample as CSV                                key
+ *   GET  /v1/areas/:area/export.json every sample as JSON, with the aggregate            key
+ *   GET  /v1/areas/:area/badge.svg   an embeddable quality badge                         free
  *
  * Plain JSON on plain paths so an operator's analyst can curl it. The metered endpoints are the
  * service — aggregation, the provenance join, the brief — not the data, which is public on two
@@ -19,6 +22,7 @@ import { z } from "zod";
 import { ENV } from "../_core/env";
 import { accessConfig, issueKey, requireAccess, verifyPurchase } from "./access";
 import { areaView, buildAreaBrief, listAreas } from "./areas";
+import { areaCsv, areaJson, badgeSvg } from "./areaExport";
 import { getOnchainSnapshot, getAttestationProgress } from "./chainRead";
 import { getProofSummary } from "./proofRead";
 import { resolveVerification } from "./verify";
@@ -154,6 +158,46 @@ export function registerBuyerApi(app: Express): void {
     }
     res.set("Cache-Control", "public, max-age=15");
     res.json({ generatedAt: new Date().toISOString(), ...view });
+  });
+
+  app.get("/v1/areas/:area/export.csv", requireAccess(), async (req, res) => {
+    const area = areaParam(req, res);
+    if (!area) return;
+    const view = areaView(await getOnchainSnapshot(), area);
+    if (!view) {
+      res.status(404).json({ error: "AREA_NOT_FOUND", area });
+      return;
+    }
+    res.set({
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="signalproof-${area}.csv"`,
+      "Cache-Control": "private, max-age=15",
+    });
+    res.send(areaCsv(view));
+  });
+
+  app.get("/v1/areas/:area/export.json", requireAccess(), async (req, res) => {
+    const area = areaParam(req, res);
+    if (!area) return;
+    const view = areaView(await getOnchainSnapshot(), area);
+    if (!view) {
+      res.status(404).json({ error: "AREA_NOT_FOUND", area });
+      return;
+    }
+    res.set({
+      "Content-Disposition": `attachment; filename="signalproof-${area}.json"`,
+      "Cache-Control": "private, max-age=15",
+    });
+    res.json(areaJson(view, new Date()));
+  });
+
+  // Free: a badge is marketing for the network, and it links back to the public verifier.
+  app.get("/v1/areas/:area/badge.svg", async (req, res) => {
+    const area = areaParam(req, res);
+    if (!area) return;
+    const view = areaView(await getOnchainSnapshot(), area);
+    res.set({ "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=60" });
+    res.send(badgeSvg({ area, quality: view?.quality ?? null, samples: view?.sampleCount ?? 0 }));
   });
 
   app.get("/v1/areas/:area/brief", requireAccess(), async (req, res) => {
