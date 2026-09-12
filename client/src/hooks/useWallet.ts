@@ -313,6 +313,52 @@ export function useWallet() {
   );
 
   /**
+   * Send plain CTC from the connected wallet — the buyer's payment into the reward pool.
+   *
+   * A value transfer to the settlement contract lands in `receive()`, which credits the pool and
+   * emits `Funded`. No calldata, no ABI: the buyer pays exactly what contributors later claim.
+   */
+  const sendValue = useCallback(
+    async (to: string, valueWei: bigint): Promise<{ ok: boolean; txHash?: string; error?: string }> => {
+      const provider = providerRef.current ?? (await discover());
+      if (!provider) return { ok: false, error: "No wallet available." };
+      if (!state.address) return { ok: false, error: "Connect a wallet first." };
+      try {
+        const chainIdHex = (await provider.request({ method: "eth_chainId" })) as string;
+        if (Number.parseInt(chainIdHex, 16) !== CC3_TESTNET_CHAIN_ID) {
+          return { ok: false, error: "Switch to Creditcoin CC3 Testnet before paying." };
+        }
+        const txHash = (await provider.request({
+          method: "eth_sendTransaction",
+          params: [{ from: state.address, to, value: "0x" + valueWei.toString(16) }],
+        })) as string;
+        return { ok: true, txHash };
+      } catch (err) {
+        return { ok: false, error: describeError(err) };
+      }
+    },
+    [discover, state.address],
+  );
+
+  /**
+   * Sign an arbitrary text with the connected wallet (EIP-191 personal_sign). Used to prove that
+   * the redeemer of an API key is the address that paid for it.
+   */
+  const signText = useCallback(
+    async (message: string): Promise<{ ok: boolean; signature?: string; error?: string }> => {
+      const provider = providerRef.current ?? (await discover());
+      if (!provider || !state.address) return { ok: false, error: "Connect a wallet first." };
+      try {
+        const signature = (await provider.request({ method: "personal_sign", params: [message, state.address] })) as string;
+        return { ok: true, signature };
+      } catch (err) {
+        return { ok: false, error: describeError(err) };
+      }
+    },
+    [discover, state.address],
+  );
+
+  /**
    * Sign a measurement root with the contributor's key.
    *
    * Free, gasless, and off-chain — but it is what turns reward attribution into a claim BY the
@@ -355,7 +401,7 @@ export function useWallet() {
     [discover, state.address],
   );
 
-  return { ...state, connect, disconnect, switchToCreditcoin, claimReward, sendSettlement, signMeasurement };
+  return { ...state, connect, disconnect, switchToCreditcoin, claimReward, sendSettlement, sendValue, signText, signMeasurement };
 }
 
 /** Names the chains a user is plausibly on, so the banner can say more than a bare number. */

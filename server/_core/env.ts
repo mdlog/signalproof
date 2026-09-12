@@ -23,4 +23,8 @@ export const ENV = {
   retiredRegistries: process.env.RETIRED_REGISTRIES ?? "",
   /** "full" (default) relays and settles; "relay-only" relays to Sepolia and leaves settlement to wallets. */
   proofWorkerMode: process.env.PROOF_WORKER_MODE ?? "",
+  /** Buyer access: price of a key in CTC, its term in days, and the HMAC secret (falls back to JWT_SECRET). */
+  buyerAccessPriceCtc: process.env.BUYER_ACCESS_PRICE_CTC ?? "",
+  buyerAccessDays: process.env.BUYER_ACCESS_DAYS ?? "",
+  buyerAccessSecret: process.env.BUYER_ACCESS_SECRET ?? "",
 };
