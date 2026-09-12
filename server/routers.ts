@@ -25,6 +25,7 @@ import { MEASUREMENT_RATE_LIMIT, measurementRateLimit } from "./signalproof/rate
 import { getProofSummary } from "./signalproof/proofRead";
 import { resolveVerification } from "./signalproof/verify";
 import { areaView } from "./signalproof/areas";
+import { listContributors } from "./signalproof/contributors";
 import { areaTrend } from "./signalproof/areaExport";
 
 /**
@@ -305,6 +306,9 @@ export const appRouter = router({
     onchain: publicProcedure
       .input(z.object({ force: z.boolean().default(false) }).optional())
       .query(({ input }) => getOnchainSnapshot(input?.force ?? false)),
+
+    /** Every reward address on chain, ranked by settled measurements. */
+    contributors: publicProcedure.query(async () => listContributors(await getOnchainSnapshot())),
 
     /** One cell with every sample, its provenance and its quality trend. The dashboard's own read; the metered copy is /v1. */
     area: publicProcedure

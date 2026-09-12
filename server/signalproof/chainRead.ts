@@ -694,7 +694,21 @@ export type ContributorStats = {
  * is what makes "earned" and "unclaimed" two different, checkable numbers rather than one number
  * with an implied history.
  */
+const contributorCache = new Map<string, { at: number; value: ContributorStats }>();
+const CONTRIBUTOR_CACHE_TTL_MS = 60_000;
+
 export async function getContributorStats(address: string): Promise<ContributorStats> {
+  // The RewardClaimed scan walks the settlement contracts' whole history on a public CC3 RPC —
+  // tens of seconds — so a fresh answer is kept for a minute per address. A claim made in that
+  // minute shows up on the next read; the accrual itself comes from `rewardsFor`, which is live.
+  const hit = contributorCache.get(address.toLowerCase());
+  if (hit && Date.now() - hit.at < CONTRIBUTOR_CACHE_TTL_MS && !hit.value.error) return hit.value;
+  const value = await computeContributorStats(address);
+  if (!value.error) contributorCache.set(address.toLowerCase(), { at: Date.now(), value });
+  return value;
+}
+
+async function computeContributorStats(address: string): Promise<ContributorStats> {
   const empty: ContributorStats = {
     address,
     measurements: [],

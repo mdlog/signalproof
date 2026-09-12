@@ -15,6 +15,7 @@
  */
 
 import { useState } from "react";
+import { Link } from "wouter";
 import { CircleAlert, Check, LogOut, Network, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CC3_TESTNET_CHAIN_ID, chainName, shortAddress } from "@/hooks/useWallet";
@@ -95,13 +96,15 @@ export default function WalletControl({ wallet }: Props) {
         </span>
       )}
 
-      {/* The address is the identity that will accrue the reward, so it stays visible. */}
-      <span
-        className="inline-block rounded-lg border border-[#DCE5EB] bg-white px-2.5 py-1.5 font-mono text-[11px] text-[#426176]"
-        title={wallet.address ?? undefined}
+      {/* The address is the identity that will accrue the reward, so it stays visible — and it
+          links to that identity's own page: what it measured, earned and claimed. */}
+      <Link
+        href={`/contributors/${wallet.address ?? ""}`}
+        className="inline-block rounded-lg border border-[#DCE5EB] bg-white px-2.5 py-1.5 font-mono text-[11px] text-[#426176] hover:border-[#31B7A6] hover:text-[#147A70]"
+        title={wallet.address ? `${wallet.address} — open my profile` : undefined}
       >
         {wallet.address ? shortAddress(wallet.address) : ""}
-      </span>
+      </Link>
 
       <Button
         size="sm"
