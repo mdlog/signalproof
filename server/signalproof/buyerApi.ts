@@ -6,6 +6,7 @@
  *   POST /v1/access/redeem         { txHash, address, signature } -> key            free
  *   GET  /v1/areas/:area           one cell with every sample and its provenance    key
  *   GET  /v1/areas/:area/brief     the same, as a markdown brief a buyer can forward key
+ *   GET  /v1/verify/:hash          a root or transaction hash across both chains       free
  *
  * Plain JSON on plain paths so an operator's analyst can curl it. The metered endpoints are the
  * service — aggregation, the provenance join, the brief — not the data, which is public on two
@@ -18,7 +19,9 @@ import { z } from "zod";
 import { ENV } from "../_core/env";
 import { accessConfig, issueKey, requireAccess, verifyPurchase } from "./access";
 import { areaView, buildAreaBrief, listAreas } from "./areas";
-import { getOnchainSnapshot } from "./chainRead";
+import { getOnchainSnapshot, getAttestationProgress } from "./chainRead";
+import { getProofSummary } from "./proofRead";
+import { resolveVerification } from "./verify";
 
 const redeemInput = z.object({
   txHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
@@ -106,6 +109,22 @@ function areaParam(req: Request, res: Response): string | null {
 
 export function registerBuyerApi(app: Express): void {
   registerAccessRoutes(app);
+
+  // Verification is never metered. Any of a measurement's three hashes resolves here.
+  app.get("/v1/verify/:hash", async (req, res) => {
+    const result = resolveVerification(await getOnchainSnapshot(), String(req.params.hash ?? ""));
+    res.set("Cache-Control", "public, max-age=15");
+    if (!result.found) {
+      res.status(result.reason === "MALFORMED" ? 400 : 404).json(result);
+      return;
+    }
+    const m = result.measurement;
+    const [attestation, proof] = await Promise.all([
+      m.status === "AWAITING_ATTESTATION" && m.sourceBlockNumber ? getAttestationProgress(m.sourceBlockNumber) : Promise.resolve(undefined),
+      m.sourceTxHash ? getProofSummary(m.sourceTxHash) : Promise.resolve(undefined),
+    ]);
+    res.json({ generatedAt: new Date().toISOString(), ...result, attestation, proof });
+  });
 
   app.get("/v1/areas", async (_req, res) => {
     const snapshot = await getOnchainSnapshot();

@@ -23,6 +23,7 @@ import { buildMeasurementSigningMessage, deriveMeasurementRoot } from "@shared/m
 import { getAddress, verifyMessage } from "ethers";
 import { MEASUREMENT_RATE_LIMIT, measurementRateLimit } from "./signalproof/rateLimit";
 import { getProofSummary } from "./signalproof/proofRead";
+import { resolveVerification } from "./signalproof/verify";
 
 /**
  * Clock skew we tolerate on a client-supplied timestamp.
@@ -302,6 +303,26 @@ export const appRouter = router({
     onchain: publicProcedure
       .input(z.object({ force: z.boolean().default(false) }).optional())
       .query(({ input }) => getOnchainSnapshot(input?.force ?? false)),
+
+    /**
+     * One hash — a measurement root, a Sepolia commitment or a Creditcoin settlement — resolved
+     * to its joined record, plus the live attestation countdown while it is pending and the
+     * Attestcoin proof once one exists. Free, keyless, shareable as /verify/<hash>.
+     */
+    verify: publicProcedure
+      .input(z.object({ hash: z.string().min(1).max(128) }))
+      .query(async ({ input }) => {
+        const result = resolveVerification(await getOnchainSnapshot(), input.hash);
+        if (!result.found) return result;
+        const m = result.measurement;
+        const [attestation, proof] = await Promise.all([
+          m.status === "AWAITING_ATTESTATION" && m.sourceBlockNumber
+            ? getAttestationProgress(m.sourceBlockNumber)
+            : Promise.resolve(undefined),
+          m.sourceTxHash ? getProofSummary(m.sourceTxHash) : Promise.resolve(undefined),
+        ]);
+        return { ...result, attestation, proof };
+      }),
   }),
 });
 

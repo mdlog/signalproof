@@ -4,13 +4,14 @@
  * This is the product surface an operator, venue or public programme would query: an area's
  * aggregate quality, and every sample behind it with the transactions that prove it. Nothing is
  * served that the two chains do not already agree on, and nothing session-binding (signature,
- * nonce, sessionHash) exists in the snapshot to leak. No authentication, no retention policy yet —
- * README says so.
+ * nonce, sessionHash) exists in the snapshot to leak. Per-area views are metered by a key bought with
+ * CTC that funds the reward pool (`access.ts`); no retention policy yet — README says so.
  */
 
 import { decodeGeohash, decodeGeohashBounds, geohashCellSize, type GeoBounds } from "../../shared/geohash";
 import { qualityScore } from "../../shared/quality";
 import type { OnchainMeasurement, OnchainSnapshot } from "./chainRead";
+import { verifyUrlFor } from "./verify";
 
 const SEPOLIA_TX = "https://sepolia.etherscan.io/tx/";
 const CC3_TX = "https://creditcoin-testnet.blockscout.com/tx/";
@@ -26,6 +27,8 @@ export type AreaSample = {
   creditcoinTxHash: string | null;
   rewardAmountWei: string | null;
   explorer: { source: string | null; settlement: string | null };
+  /** The public verifier page for this sample: any of its hashes resolves there. */
+  verifyUrl: string;
 };
 
 export type AreaCell = {
@@ -121,6 +124,7 @@ export function areaView(snapshot: OnchainSnapshot, areaHash: string): AreaView 
         source: m.sourceTxHash ? SEPOLIA_TX + m.sourceTxHash : null,
         settlement: m.creditcoinTxHash ? CC3_TX + m.creditcoinTxHash : null,
       },
+      verifyUrl: verifyUrlFor(m.measurementRoot),
     }));
 
   return {
@@ -174,7 +178,7 @@ export function buildAreaBrief(view: AreaView, generatedAt: Date): string {
     "",
     "## Not included",
     "",
-    "No identities beyond reward addresses, no device trails, no raw coordinates. Retention policy and buyer authentication are not implemented yet.",
+    "No identities beyond reward addresses, no device trails, no raw coordinates. A retention policy is not implemented yet.",
   ];
   return lines.join("\n");
 }
