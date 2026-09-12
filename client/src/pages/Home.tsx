@@ -41,6 +41,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import ProofPanel from "@/components/ProofPanel";
+import { useMeasurementRun } from "@/hooks/useMeasurementRun";
 import CoverageMap from "@/components/CoverageMap";
 import { CC3_TESTNET_CHAIN_ID } from "@/hooks/useWallet";
 import { useWalletContext } from "@/contexts/WalletContext";
@@ -48,23 +49,11 @@ import AppShell, { ROUTE_NAV, sourceDocs, type ShellNavItem } from "@/components
 import ClaimReward from "@/components/ClaimReward";
 import { TrustBoundary } from "@/components/TrustBoundary";
 import BuyAccess from "@/components/BuyAccess";
+import AutoMeasure from "@/components/AutoMeasure";
 import { accessHeaders, describeAccessRefusal } from "@/lib/access";
-import {
-  LocationError,
-  measureLatency,
-  measureLocation,
-  measureThroughput,
-  readNetworkClass,
-  type LatencyResult,
-  type LocationResult,
-  type NetworkClass,
-  type ThroughputResult,
-} from "@/lib/measure";
-import { deriveMeasurementRoot, deriveSessionHash, makeNonce } from "@shared/measurement";
 import { qualityScore } from "@shared/quality";
 
 type Mode = "overview" | "measure" | "proofs" | "api";
-type TestState = "idle" | "sampling" | "submitted" | "attesting" | "settled" | "rejected";
 
 
 
@@ -75,22 +64,6 @@ function toneFor(quality: number) {
   return { status: "attention", color: "#F06A59" };
 }
 
-/**
- * Gateway rejection codes, in the interface's own words. Anything unknown is shown as sent, cut to
- * a length that still fits the panel.
- */
-function describeSubmitError(message: string): string {
-  const copy: Record<string, string> = {
-    RATE_LIMITED:
-      "Rate limited: this address has already recorded 3 measurements in this cell in the last 10 minutes. Try again later, or from another area.",
-    STALE_MEASUREMENT: "The measurement is older than 15 minutes. Run the test again.",
-    TIMESTAMP_IN_FUTURE: "Your device clock is ahead of the gateway by more than a minute.",
-    DUPLICATE_MEASUREMENT_ROOT: "This exact measurement was already submitted.",
-    SIGNATURE_MISMATCH: "The signature does not match the connected wallet. Reconnect and sign again.",
-    MEASUREMENT_ROOT_MISMATCH: "The payload changed after it was signed. Run the test again.",
-  };
-  return copy[message] ?? message.slice(0, 200);
-}
 
 function shortHash(hash: string | null): string {
   if (!hash) return "—";
@@ -144,7 +117,6 @@ type Zone = { name: string; code: string; quality: number; samples: number; stat
 export default function Home() {
   const [mode, setMode] = useState<Mode>("overview");
   const [selectedZone, setSelectedZone] = useState("Kota Tua");
-  const [testState, setTestState] = useState<TestState>("idle");
   const [copied, setCopied] = useState(false);
   const [brief, setBrief] = useState<{ area: string; text: string; loading: boolean; error: string | null } | null>(null);
   /** Source tx whose Attestcoin proof is open in the inspector. */
@@ -318,146 +290,8 @@ export default function Home() {
 
   const wallet = useWalletContext();
 
-  const [reading, setReading] = useState<{
-    latency?: LatencyResult;
-    throughput?: ThroughputResult;
-    location?: LocationResult;
-    network?: NetworkClass;
-    bytes?: number;
-  }>({});
-  const [measureError, setMeasureError] = useState<string | null>(null);
-  const [submittedRoot, setSubmittedRoot] = useState<string | null>(null);
-
-  const submitMeasurement = trpc.signalproof.submitMeasurement.useMutation();
-
-  /** One session id per tab. Only its hash is ever sent. */
-  const sessionId = useMemo(() => makeNonce(), []);
-
-  /**
-   * Run a real measurement.
-   *
-   * Deliberately sequential and fail-closed. Location comes first because it is the only step that
-   * prompts, and because a measurement without an area has nothing to attach itself to — the
-   * contract requires an areaHash and the coverage map groups on it, so a placeholder would draw a
-   * cell that does not exist.
-   */
-  const runTest = async () => {
-    if (!wallet.address) return;
-
-    setMode("measure");
-    setMeasureError(null);
-    setSubmittedRoot(null);
-    setReading({});
-    setTestState("sampling");
-
-    try {
-      const location = await measureLocation();
-      setReading((r) => ({ ...r, location }));
-
-      const network = readNetworkClass();
-      setReading((r) => ({ ...r, network }));
-
-      const latency = await measureLatency();
-      setReading((r) => ({ ...r, latency }));
-
-      const throughput = await measureThroughput((bytes) =>
-        setReading((r) => ({ ...r, bytes })),
-      );
-      setReading((r) => ({ ...r, throughput }));
-
-      const timestampMs = String(Date.now());
-      const nonce = makeNonce();
-      const sessionHash = deriveSessionHash(sessionId);
-
-      const canonical = {
-        areaHash: location.geohash,
-        networkType: network.effectiveType,
-        latencyMs: latency.medianMs,
-        downloadMbps: Math.round(throughput.mbps),
-        uploadMbps: 0,
-        packetLossBps: 0,
-        timestampMs,
-        nonce,
-        sessionHash,
-        contributorAddress: wallet.address,
-      };
-      const measurementRoot = deriveMeasurementRoot(canonical);
-
-      // Free, gasless, off-chain. The server recovers the signer and refuses anything that does not
-      // match the named contributor, so this is what makes the reward attribution the
-      // contributor's own claim.
-      const signed = await wallet.signMeasurement(measurementRoot, canonical.contributorAddress);
-      if (!signed.ok || !signed.signature) {
-        throw new Error(signed.error ?? "You declined to sign the measurement.");
-      }
-
-      setTestState("submitted");
-      await submitMeasurement.mutateAsync({
-        deviceAlias: navigator.platform || "browser",
-        areaHash: canonical.areaHash,
-        // The gateway requires a network type; the browser may not have one to give.
-        networkType: network.effectiveType ?? "unreported",
-        latencyMs: canonical.latencyMs,
-        downloadMbps: canonical.downloadMbps,
-        uploadMbps: canonical.uploadMbps,
-        packetLossBps: canonical.packetLossBps,
-        timestampMs,
-        nonce,
-        measurementRoot,
-        sessionHash,
-        signature: signed.signature,
-        contributorAddress: wallet.address,
-      });
-
-      setSubmittedRoot(measurementRoot);
-      setTestState("attesting");
-    } catch (error) {
-      setTestState("rejected");
-      setMeasureError(
-        error instanceof LocationError
-          ? error.message
-          : error instanceof Error
-            ? describeSubmitError(error.message)
-            : "The measurement could not be completed.",
-      );
-    }
-  };
-
-  /**
-   * Follow the submitted measurement through the chain.
-   *
-   * Polls the gateway rather than guessing: the real wait is ~8.5 minutes, dominated by attestation,
-   * and no client-side timer can know where it is.
-   */
-  const tracked = trpc.signalproof.getMeasurement.useQuery(
-    { measurementRoot: submittedRoot ?? "" },
-    { enabled: Boolean(submittedRoot), refetchInterval: 15_000 },
-  );
-
-  /**
-   * Live attestation countdown.
-   *
-   * The ~8 minute wait is not dead time, it is the protocol working — Creditcoin's attestation
-   * frontier advancing toward the Sepolia block this measurement landed in. Every number here can
-   * be checked against a block explorer, which is why it beats any progress bar.
-   */
-  const attestation = trpc.signalproof.attestationProgress.useQuery(
-    { sourceBlockNumber: Number(tracked.data?.sourceBlockNumber ?? 0) },
-    {
-      enabled: Boolean(tracked.data?.sourceBlockNumber) && testState === "attesting",
-      refetchInterval: 20_000,
-    },
-  );
-
-  useEffect(() => {
-    const status = tracked.data?.status;
-    if (!status) return;
-    if (status === "SETTLED") setTestState("settled");
-    else if (status === "REJECTED") setTestState("rejected");
-    else if (status === "AWAITING_ATTESTATION" || status === "PROOF_VERIFIED") {
-      setTestState("attesting");
-    }
-  }, [tracked.data?.status]);
+  const run = useMeasurementRun({ wallet, onStart: () => setMode("measure") });
+  const { reading, measureError, submittedRoot, testState, setTestState, tracked, attestation, runTest, runTamperedDemo } = run;
 
   /**
    * The payload as it actually stands right now.
@@ -527,84 +361,6 @@ export default function Home() {
     return stageLabel;
   }, [attestation.data, testState, stageLabel]);
 
-  /**
-   * Simulated rejection, for demonstrating what a tampered payload looks like.
-   *
-   * Explicitly NOT a measurement: nothing is measured, submitted, or put on any chain. Kept
-   * separate from runTest so a viewer can never mistake which button produced the state on screen.
-   */
-  /**
-   * Submit a genuinely tampered payload and show the server's real answer.
-   *
-   * This used to be pure setState — it asserted a rejection that never happened. Now it signs an
-   * honest root, then inflates the throughput before sending, so the values no longer hash to the
-   * signed commitment. The rejection on screen is the gateway's, not ours.
-   */
-  const runTamperedDemo = async () => {
-    if (!wallet.address) return;
-    setMode("measure");
-    setMeasureError(null);
-    setSubmittedRoot(null);
-    setTestState("sampling");
-
-    try {
-      const location = await measureLocation();
-      const network = readNetworkClass();
-      const latency = await measureLatency();
-      setReading({ location, network, latency });
-
-      const timestampMs = String(Date.now());
-      const nonce = makeNonce();
-      const sessionHash = deriveSessionHash(sessionId);
-      const honest = {
-        areaHash: location.geohash,
-        networkType: network.effectiveType,
-        latencyMs: latency.medianMs,
-        downloadMbps: 25,
-        uploadMbps: 0,
-        packetLossBps: 0,
-        timestampMs,
-        nonce,
-        sessionHash,
-        contributorAddress: wallet.address,
-      };
-      const measurementRoot = deriveMeasurementRoot(honest);
-      const signed = await wallet.signMeasurement(measurementRoot, honest.contributorAddress);
-      if (!signed.ok || !signed.signature) {
-        throw new Error(signed.error ?? "You declined to sign.");
-      }
-
-      setTestState("submitted");
-      await submitMeasurement.mutateAsync({
-        deviceAlias: "tamper-demo",
-        areaHash: honest.areaHash,
-        networkType: network.effectiveType ?? "unreported",
-        latencyMs: honest.latencyMs,
-        // The tamper: 25 Mbps was signed, 999 is sent.
-        downloadMbps: 999,
-        uploadMbps: 0,
-        packetLossBps: 0,
-        timestampMs,
-        nonce,
-        measurementRoot,
-        sessionHash,
-        signature: signed.signature,
-        contributorAddress: wallet.address,
-      });
-
-      // Reaching here would mean the gateway accepted a forged payload.
-      setTestState("rejected");
-      setMeasureError("The gateway ACCEPTED a tampered payload. That is a bug — please report it.");
-    } catch (error) {
-      setTestState("rejected");
-      const message = error instanceof Error ? error.message : String(error);
-      setMeasureError(
-        message.includes("MEASUREMENT_ROOT_MISMATCH")
-          ? "Rejected by the gateway: MEASUREMENT_ROOT_MISMATCH. The throughput was changed to 999 Mbps after signing, so the values no longer hash to the signed commitment. Nothing reached any chain."
-          : message.slice(0, 220),
-      );
-    }
-  };
 
   /**
    * Settle a measurement from the connected wallet. The server builds execute()'s calldata from
@@ -687,7 +443,7 @@ export default function Home() {
               <Card className="mt-5 rounded-xl border-[#DCE5EB] bg-white shadow-[0_1px_0_rgba(16,42,67,.08)]"><CardHeader className="flex-row items-center justify-between space-y-0 px-5 pb-2 pt-5 sm:px-6"><div><CardTitle className="font-display text-xl">Recent measurements</CardTitle><p className="mt-1 text-xs text-[#8EA0AC]">Latest device sessions across your pilot grid</p></div><button onClick={() => setMode("proofs")} className="text-xs font-semibold text-[#147A70]">View all <ChevronRight className="ml-1 inline h-3.5 w-3.5" /></button></CardHeader><CardContent className="overflow-x-auto px-5 pb-5 sm:px-6"><table className="w-full min-w-[700px] text-left text-sm"><thead><tr className="border-b border-[#EDF2F5] text-[10px] uppercase tracking-[0.13em] text-[#A0AFBB]"><th className="py-3 font-medium">Device</th><th className="py-3 font-medium">Area</th><th className="py-3 font-medium">Network</th><th className="py-3 font-medium">Signal</th><th className="py-3 font-medium">Status</th><th className="py-3 text-right font-medium">Time</th></tr></thead><tbody>{measurements.map(row => <tr key={row.id} className="border-b border-[#F0F3F5] last:border-0"><td className="py-4"><div className="flex items-center gap-2.5"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#E7EEF8] text-[#4C75B2]"><Smartphone className="h-3.5 w-3.5" /></span><div><div className="font-semibold">{row.device}</div><div className="font-mono text-[9px] text-[#A0AFBB]">{row.id}</div></div></div></td><td className="py-4 text-[#5F7585]">{row.area}</td><td className="py-4"><span className="rounded-md bg-[#F5F8FA] px-2 py-1 text-xs font-semibold text-[#426176]">{row.network}</span></td><td className="py-4"><div className="font-semibold text-[#102A43]">{row.speed}</div><div className="text-[10px] text-[#8EA0AC]">{row.latency} latency</div></td><td className="py-4"><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusClass(row.status)}`}>{row.status === "settled" ? "Settled" : row.status === "verified" ? "Verified" : row.status === "awaiting" ? "Awaiting proof" : "Rejected"}</span></td><td className="py-4 text-right text-xs text-[#8EA0AC]">{row.time}</td></tr>)}</tbody></table></CardContent></Card>
             </>}
 
-            {mode === "measure" && <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]"><Card className="overflow-hidden rounded-xl border-[#DCE5EB] bg-white"><div className="relative border-b border-[#DCE5EB] bg-[#102A43] px-6 py-7 text-white"><div aria-hidden="true" className="absolute inset-0 opacity-[0.14] [background-image:linear-gradient(90deg,rgba(255,255,255,.5)_1px,transparent_1px),linear-gradient(rgba(255,255,255,.5)_1px,transparent_1px)] [background-size:28px_28px]" /><div className="relative"><Badge className="rounded-full bg-[#31B7A6]/20 text-[#62DCCB]">{wallet.status === "connected" ? "LIVE MEASUREMENT · TESTNET SETTLEMENT" : "WALLET REQUIRED"}</Badge><h2 className="mt-4 font-display text-3xl font-bold">Capture a signal snapshot.</h2><p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">Run a short, consent-based test. SignalProof records only the evidence needed for an area-level connectivity view.</p></div></div><CardContent className="p-6 sm:p-8"><div className="grid gap-8 lg:grid-cols-[.85fr_1.15fr]"><div className="flex flex-col items-center justify-center rounded-xl bg-[#F5F8FA] p-8 text-center"><div className={`relative flex h-32 w-32 items-center justify-center rounded-full border-[7px] ${testState === "settled" ? "border-[#31B7A6] bg-[#DDF7F1]" : testState === "rejected" ? "border-[#F06A59] bg-[#FDE4DF]" : "border-[#DCE5EB] bg-white"}`}><div className="absolute inset-2 rounded-full border border-dashed border-[#BFD1D9]" />{testState === "settled" ? <CheckCircle2 className="h-11 w-11 text-[#147A70]" /> : testState === "rejected" ? <XCircle className="h-11 w-11 text-[#B44A3C]" /> : <Radio className={`h-11 w-11 text-[#4C75B2] ${testState === "sampling" ? "animate-pulse" : ""}`} />}</div><div className="mt-5 font-display text-xl font-bold">{testState === "idle" ? "Ready to measure" : testState === "sampling" ? "Sampling network…" : testState === "submitted" ? "Measurement submitted" : testState === "attesting" ? "Awaiting attestation…" : testState === "settled" ? "Proof verified" : "Payload rejected"}</div><p className="mt-2 max-w-xs text-xs leading-relaxed text-[#73879A]">{testState === "idle" ? (wallet.status === "connected" ? "One measurement takes about 8\u20139 minutes end to end. Most of that is waiting for Creditcoin\u2019s attestation to reach your Sepolia block." : "Connect a wallet to run a real measurement. The connected address is what accrues the reward on Creditcoin.") : testState === "settled" ? "The source event was proven and the contributor reward was settled." : testState === "rejected" ? "The signed payload hash does not match the submitted value." : (submittedRoot ? "You can close this tab \u2014 the relayer and proof worker run on the server." : "Nothing is sent until the measurement completes.")}</p>{testState === "idle" && <Button onClick={() => runTest()} disabled={wallet.status !== "connected"} title={wallet.status === "connected" ? undefined : "Connect a wallet first — it is the address that will accrue the reward."} className="mt-6 w-full rounded-xl bg-[#F06A59] text-white hover:bg-[#dc5b4b]"><Zap className="mr-2 h-4 w-4" /> Run valid test</Button>}{testState === "settled" && <Button onClick={() => setTestState("idle")} variant="outline" className="mt-6 w-full rounded-xl border-[#DCE5EB]">Run another test</Button>}{testState === "rejected" && <Button onClick={() => setTestState("idle")} variant="outline" className="mt-6 w-full rounded-xl border-[#DCE5EB]">Reset scenario</Button>}</div><div className="space-y-6"><div><div className="mb-3 flex items-center justify-between"><div className="text-xs font-semibold text-[#426176]">Evidence pipeline</div><div className="font-mono text-[10px] text-[#8EA0AC]">{attestationLabel}</div></div><div className="h-2 overflow-hidden rounded-full bg-[#EDF2F5]"><div className="h-full rounded-full bg-[#31B7A6] transition-all duration-500" style={{ width: stageWidth }} /></div></div>{testState === "attesting" && attestation.data && !attestation.data.error && <div className="mt-3 rounded-lg border border-[#DCE5EB] bg-[#F8FBFC] px-3 py-2 font-mono text-[10px] leading-relaxed text-[#5F7585]"><div className="flex justify-between"><span>attested height</span><span className="text-[#102A43]">{attestation.data.attestedHeight.toLocaleString()}</span></div><div className="flex justify-between"><span>your block</span><span className="text-[#102A43]">{attestation.data.sourceBlockNumber.toLocaleString()}</span></div><div className="mt-1 border-t border-[#DCE5EB] pt-1 text-[#8EA0AC]">Creditcoin attests Sepolia in batches of ~10 blocks, about every 2 minutes. Verifiable on any Sepolia explorer.</div></div>}<div className="space-y-5"><FlowStep index="01" title="Capture session" detail="Network type, latency, throughput, coarse area, and a fresh nonce." state={testState !== "idle" && testState !== "rejected" ? "done" : "active"} /><FlowStep index="02" title="Source-chain event" detail="Measurement root is committed to the source chain and returns a txHash." state={testState === "submitted" || testState === "attesting" || testState === "settled" ? "done" : testState === "sampling" ? "active" : "idle"} /><FlowStep index="03" title="Attestcoin proof" detail="ProofBuilder waits for attestation, then returns Merkle and continuity proof data." state={testState === "attesting" ? "active" : testState === "settled" ? "done" : "idle"} /><FlowStep index="04" title="Creditcoin settlement" detail="Verified proof unlocks the reward policy; duplicate or tampered payloads do not settle." state={testState === "settled" ? "done" : "idle"} /></div><Separator /><div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-[#DCE5EB] p-3"><div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#A0AFBB]">Network class</div><div className="mt-2 font-semibold">{reading.network ? (reading.network.effectiveType ? `class ${reading.network.effectiveType}` : "Not reported") : "—"}</div><div className="mt-1 text-[10px] leading-snug text-[#8EA0AC]">{reading.network ? (reading.network.available ? "Browser\u2019s own estimate. No web API exposes the carrier or the radio generation." : "This browser does not expose a network type.") : ""}</div></div><div className="rounded-xl border border-[#DCE5EB] p-3"><div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#A0AFBB]">Coarse area</div>{measureError && <div className="mb-3 rounded-lg border border-[#F06A59]/30 bg-[#FFF8F6] px-3 py-2 text-[11px] leading-relaxed text-[#B44A3C]">{measureError}</div>}<div className="mt-2 font-semibold">{reading.location?.geohash ?? "—"}</div><div className="mt-1 text-[10px] leading-snug text-[#8EA0AC]">{reading.location ? `\u00b1${reading.location.accuracyM} m \u2192 cell ${reading.location.cell.widthM}\u00d7${reading.location.cell.heightM} m \u00b7 coordinate discarded` : ""}</div></div><div className="rounded-xl border border-[#DCE5EB] p-3"><div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#A0AFBB]">Latency</div><div className="mt-2 font-semibold">{reading.latency ? `${reading.latency.medianMs} ms` : "—"}</div><div className="mt-1 text-[10px] leading-snug text-[#8EA0AC]">{reading.latency ? `median of ${reading.latency.samples} round trips \u00b7 min ${reading.latency.minMs} ms` : ""}</div></div><div className="rounded-xl border border-[#DCE5EB] p-3"><div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#A0AFBB]">Throughput</div><div className="mt-2 font-semibold">{reading.throughput ? `${reading.throughput.mbps} Mbps` : reading.bytes ? `${(reading.bytes / 1e6).toFixed(1)} MB\u2026` : "—"}</div><div className="mt-1 text-[10px] leading-snug text-[#8EA0AC]">{reading.throughput ? `${(reading.throughput.bytes / 1e6).toFixed(2)} MB over ${reading.throughput.seconds}s${reading.throughput.uncompressed ? "" : " \u00b7 compressed, unreliable"}` : ""}</div></div></div>{testState === "idle" && <button onClick={() => { void runTamperedDemo(); }} disabled={wallet.status !== "connected"} className="text-left text-xs font-semibold text-[#B44A3C] underline decoration-[#F06A59] underline-offset-4">Demo: submit a tampered payload (gateway rejects it)</button>}</div></div></CardContent></Card><Card className="rounded-xl border-[#DCE5EB] bg-white shadow-[0_1px_0_rgba(16,42,67,.08)]"><CardHeader className="px-6 pb-2 pt-6"><CardTitle className="font-display text-xl">What the app sends</CardTitle><p className="mt-1 text-xs leading-relaxed text-[#8EA0AC]">Only the minimum evidence needed for an area-level signal.</p></CardHeader><CardContent className="space-y-3 px-6 pb-6"><div className="rounded-xl bg-[#F5F8FA] p-4 font-mono text-[10px] leading-[1.9] text-[#426176]">{payloadPreview}</div><div className="flex gap-3 rounded-xl border border-[#DDF7F1] bg-[#F5FFFC] p-4"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#147A70]" /><p className="text-xs leading-relaxed text-[#4F766F]">The browser prototype mirrors the production state machine. Wallet keys, relayer secrets, and proof-builder credentials stay outside the frontend.</p></div><Button variant="outline" asChild className="w-full rounded-xl border-[#DCE5EB]"><a href={sourceDocs} target="_blank" rel="noreferrer">Open Attestcoin SDK docs <ExternalLink className="ml-2 h-4 w-4" /></a></Button></CardContent></Card></div>}
+            {mode === "measure" && <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]"><Card className="overflow-hidden rounded-xl border-[#DCE5EB] bg-white"><div className="relative border-b border-[#DCE5EB] bg-[#102A43] px-6 py-7 text-white"><div aria-hidden="true" className="absolute inset-0 opacity-[0.14] [background-image:linear-gradient(90deg,rgba(255,255,255,.5)_1px,transparent_1px),linear-gradient(rgba(255,255,255,.5)_1px,transparent_1px)] [background-size:28px_28px]" /><div className="relative"><Badge className="rounded-full bg-[#31B7A6]/20 text-[#62DCCB]">{wallet.status === "connected" ? "LIVE MEASUREMENT · TESTNET SETTLEMENT" : "WALLET REQUIRED"}</Badge><h2 className="mt-4 font-display text-3xl font-bold">Capture a signal snapshot.</h2><p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">Run a short, consent-based test. SignalProof records only the evidence needed for an area-level connectivity view.</p></div></div><CardContent className="p-6 sm:p-8"><div className="grid gap-8 lg:grid-cols-[.85fr_1.15fr]"><div className="flex flex-col items-center justify-center rounded-xl bg-[#F5F8FA] p-8 text-center"><div className={`relative flex h-32 w-32 items-center justify-center rounded-full border-[7px] ${testState === "settled" ? "border-[#31B7A6] bg-[#DDF7F1]" : testState === "rejected" ? "border-[#F06A59] bg-[#FDE4DF]" : "border-[#DCE5EB] bg-white"}`}><div className="absolute inset-2 rounded-full border border-dashed border-[#BFD1D9]" />{testState === "settled" ? <CheckCircle2 className="h-11 w-11 text-[#147A70]" /> : testState === "rejected" ? <XCircle className="h-11 w-11 text-[#B44A3C]" /> : <Radio className={`h-11 w-11 text-[#4C75B2] ${testState === "sampling" ? "animate-pulse" : ""}`} />}</div><div className="mt-5 font-display text-xl font-bold">{testState === "idle" ? "Ready to measure" : testState === "sampling" ? "Sampling network…" : testState === "submitted" ? "Measurement submitted" : testState === "attesting" ? "Awaiting attestation…" : testState === "settled" ? "Proof verified" : "Payload rejected"}</div><p className="mt-2 max-w-xs text-xs leading-relaxed text-[#73879A]">{testState === "idle" ? (wallet.status === "connected" ? "One measurement takes about 8\u20139 minutes end to end. Most of that is waiting for Creditcoin\u2019s attestation to reach your Sepolia block." : "Connect a wallet to run a real measurement. The connected address is what accrues the reward on Creditcoin.") : testState === "settled" ? "The source event was proven and the contributor reward was settled." : testState === "rejected" ? "The signed payload hash does not match the submitted value." : (submittedRoot ? "You can close this tab \u2014 the relayer and proof worker run on the server." : "Nothing is sent until the measurement completes.")}</p>{testState === "idle" && <Button onClick={() => runTest()} disabled={wallet.status !== "connected"} title={wallet.status === "connected" ? undefined : "Connect a wallet first — it is the address that will accrue the reward."} className="mt-6 w-full rounded-xl bg-[#F06A59] text-white hover:bg-[#dc5b4b]"><Zap className="mr-2 h-4 w-4" /> Run valid test</Button>}{testState === "settled" && <Button onClick={() => setTestState("idle")} variant="outline" className="mt-6 w-full rounded-xl border-[#DCE5EB]">Run another test</Button>}{testState === "rejected" && <Button onClick={() => setTestState("idle")} variant="outline" className="mt-6 w-full rounded-xl border-[#DCE5EB]">Reset scenario</Button>}</div><div className="space-y-6"><div><div className="mb-3 flex items-center justify-between"><div className="text-xs font-semibold text-[#426176]">Evidence pipeline</div><div className="font-mono text-[10px] text-[#8EA0AC]">{attestationLabel}</div></div><div className="h-2 overflow-hidden rounded-full bg-[#EDF2F5]"><div className="h-full rounded-full bg-[#31B7A6] transition-all duration-500" style={{ width: stageWidth }} /></div></div>{testState === "attesting" && attestation.data && !attestation.data.error && <div className="mt-3 rounded-lg border border-[#DCE5EB] bg-[#F8FBFC] px-3 py-2 font-mono text-[10px] leading-relaxed text-[#5F7585]"><div className="flex justify-between"><span>attested height</span><span className="text-[#102A43]">{attestation.data.attestedHeight.toLocaleString()}</span></div><div className="flex justify-between"><span>your block</span><span className="text-[#102A43]">{attestation.data.sourceBlockNumber.toLocaleString()}</span></div><div className="mt-1 border-t border-[#DCE5EB] pt-1 text-[#8EA0AC]">Creditcoin attests Sepolia in batches of ~10 blocks, about every 2 minutes. Verifiable on any Sepolia explorer.</div></div>}<div className="space-y-5"><FlowStep index="01" title="Capture session" detail="Network type, latency, throughput, coarse area, and a fresh nonce." state={testState !== "idle" && testState !== "rejected" ? "done" : "active"} /><FlowStep index="02" title="Source-chain event" detail="Measurement root is committed to the source chain and returns a txHash." state={testState === "submitted" || testState === "attesting" || testState === "settled" ? "done" : testState === "sampling" ? "active" : "idle"} /><FlowStep index="03" title="Attestcoin proof" detail="ProofBuilder waits for attestation, then returns Merkle and continuity proof data." state={testState === "attesting" ? "active" : testState === "settled" ? "done" : "idle"} /><FlowStep index="04" title="Creditcoin settlement" detail="Verified proof unlocks the reward policy; duplicate or tampered payloads do not settle." state={testState === "settled" ? "done" : "idle"} /></div><Separator /><div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-[#DCE5EB] p-3"><div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#A0AFBB]">Network class</div><div className="mt-2 font-semibold">{reading.network ? (reading.network.effectiveType ? `class ${reading.network.effectiveType}` : "Not reported") : "—"}</div><div className="mt-1 text-[10px] leading-snug text-[#8EA0AC]">{reading.network ? (reading.network.available ? "Browser\u2019s own estimate. No web API exposes the carrier or the radio generation." : "This browser does not expose a network type.") : ""}</div></div><div className="rounded-xl border border-[#DCE5EB] p-3"><div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#A0AFBB]">Coarse area</div>{measureError && <div className="mb-3 rounded-lg border border-[#F06A59]/30 bg-[#FFF8F6] px-3 py-2 text-[11px] leading-relaxed text-[#B44A3C]">{measureError}</div>}<div className="mt-2 font-semibold">{reading.location?.geohash ?? "—"}</div><div className="mt-1 text-[10px] leading-snug text-[#8EA0AC]">{reading.location ? `\u00b1${reading.location.accuracyM} m \u2192 cell ${reading.location.cell.widthM}\u00d7${reading.location.cell.heightM} m \u00b7 coordinate discarded` : ""}</div></div><div className="rounded-xl border border-[#DCE5EB] p-3"><div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#A0AFBB]">Latency</div><div className="mt-2 font-semibold">{reading.latency ? `${reading.latency.medianMs} ms` : "—"}</div><div className="mt-1 text-[10px] leading-snug text-[#8EA0AC]">{reading.latency ? `median of ${reading.latency.samples} round trips \u00b7 min ${reading.latency.minMs} ms` : ""}</div></div><div className="rounded-xl border border-[#DCE5EB] p-3"><div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#A0AFBB]">Throughput</div><div className="mt-2 font-semibold">{reading.throughput ? `${reading.throughput.mbps} Mbps` : reading.bytes ? `${(reading.bytes / 1e6).toFixed(1)} MB\u2026` : "—"}</div><div className="mt-1 text-[10px] leading-snug text-[#8EA0AC]">{reading.throughput ? `${(reading.throughput.bytes / 1e6).toFixed(2)} MB over ${reading.throughput.seconds}s${reading.throughput.uncompressed ? "" : " \u00b7 compressed, unreliable"}` : ""}</div></div></div>{testState === "idle" && <button onClick={() => { void runTamperedDemo(); }} disabled={wallet.status !== "connected"} className="text-left text-xs font-semibold text-[#B44A3C] underline decoration-[#F06A59] underline-offset-4">Demo: submit a tampered payload (gateway rejects it)</button>}</div></div></CardContent></Card><div className="space-y-5"><Card className="rounded-xl border-[#DCE5EB] bg-white shadow-[0_1px_0_rgba(16,42,67,.08)]"><CardHeader className="px-6 pb-2 pt-6"><CardTitle className="font-display text-xl">What the app sends</CardTitle><p className="mt-1 text-xs leading-relaxed text-[#8EA0AC]">Only the minimum evidence needed for an area-level signal.</p></CardHeader><CardContent className="space-y-3 px-6 pb-6"><div className="rounded-xl bg-[#F5F8FA] p-4 font-mono text-[10px] leading-[1.9] text-[#426176]">{payloadPreview}</div><div className="flex gap-3 rounded-xl border border-[#DDF7F1] bg-[#F5FFFC] p-4"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#147A70]" /><p className="text-xs leading-relaxed text-[#4F766F]">The browser prototype mirrors the production state machine. Wallet keys, relayer secrets, and proof-builder credentials stay outside the frontend.</p></div><Button variant="outline" asChild className="w-full rounded-xl border-[#DCE5EB]"><a href={sourceDocs} target="_blank" rel="noreferrer">Open Attestcoin SDK docs <ExternalLink className="ml-2 h-4 w-4" /></a></Button></CardContent></Card><AutoMeasure run={run} walletConnected={wallet.status === "connected"} /></div></div>}
 
             {mode === "proofs" && <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]"><Card className="rounded-xl border-[#DCE5EB] bg-white"><CardHeader className="flex-row items-start justify-between space-y-0 px-6 pb-3 pt-6"><div><CardTitle className="font-display text-2xl">Proof queue</CardTitle><p className="mt-1 text-xs leading-relaxed text-[#8EA0AC]">The asynchronous rail from source-chain event to Creditcoin settlement.</p></div><Badge className="rounded-full bg-[#FFF0D2] text-[#9A6517]">{snap && snap.totals.submitted > proofQueue.length ? `${proofQueue.length} most recent of ${snap.totals.submitted}` : `${proofQueue.length} item${proofQueue.length === 1 ? "" : "s"}`}</Badge></CardHeader><CardContent className="space-y-3 px-6 pb-6">{proofQueue.map((proof) => <div key={proof.id} className="w-full rounded-xl border border-[#DCE5EB] p-4 text-left"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${proof.tone === "teal" ? "bg-[#DDF7F1] text-[#147A70]" : proof.tone === "amber" ? "bg-[#FFF0D2] text-[#9A6517]" : "bg-[#FDE4DF] text-[#B44A3C]"}`}>{proof.tone === "teal" ? <CheckCircle2 className="h-5 w-5" /> : proof.tone === "amber" ? <Clock3 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}</span><div><div className="font-semibold">{proof.device} <span className="ml-1 font-mono text-[10px] font-normal text-[#A0AFBB]">{proof.id}</span></div><div className="mt-1 text-xs text-[#73879A]">{proof.detail}</div></div></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusClass(proof.status)}`}>{proof.status}</span></div><div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[#EDF2F5] pt-3 font-mono text-[10px] text-[#8EA0AC]"><span>tx {proof.tx}</span><span>block {proof.block}</span><span className="ml-auto flex flex-wrap items-center gap-3">{proof.sourceTxHash && <button onClick={() => setInspect(inspect === proof.sourceTxHash ? null : proof.sourceTxHash)} className="inline-flex items-center gap-1 font-sans text-[11px] font-semibold text-[#147A70]"><ShieldCheck className="h-3.5 w-3.5" /> {inspect === proof.sourceTxHash ? "Hide proof" : "View proof"}</button>}{proof.sourceTxHash && !proof.settled && wallet.status === "connected" && <button onClick={() => { void settleFromWallet(proof.sourceTxHash!); }} disabled={settle?.sourceTxHash === proof.sourceTxHash && settle.state === "working"} className="inline-flex items-center gap-1 rounded-lg bg-[#F06A59] px-2.5 py-1 font-sans text-[11px] font-semibold text-white hover:bg-[#dc5b4b] disabled:opacity-60"><Zap className="h-3.5 w-3.5" /> {settle?.sourceTxHash === proof.sourceTxHash && settle.state === "working" ? "Settling…" : "Settle from my wallet"}</button>}<a href={`/verify/${proof.measurementRoot}`} className="inline-flex items-center gap-1 font-sans text-[11px] font-semibold text-[#147A70]"><Search className="h-3.5 w-3.5" /> Verify</a>{proof.href && <a href={proof.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#147A70]">Open on explorer <ChevronRight className="h-3 w-3" /></a>}</span></div>{settle?.sourceTxHash === proof.sourceTxHash && settle.state !== "working" && <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${settle.state === "sent" ? "border-[#DDF7F1] bg-[#F5FFFC] text-[#147A70]" : "border-[#F06A59]/30 bg-[#FFF8F6] text-[#B44A3C]"}`}>{settle.state === "sent" ? <>Settlement sent from your wallet: <a className="font-mono underline" href={`https://creditcoin-testnet.blockscout.com/tx/${settle.txHash}`} target="_blank" rel="noreferrer">{shortHash(settle.txHash ?? null)}</a>. The row flips to Settled once Creditcoin mines it.</> : settle.error}</div>}{inspect === proof.sourceTxHash && <ProofPanel query={proofQuery} settled={proof.settled} />}</div>)}</CardContent></Card><ClaimReward wallet={wallet} /><Card className="rounded-xl border-[#DCE5EB] bg-white"><CardHeader className="px-6 pb-2 pt-6"><CardTitle className="font-display text-xl">Verified pathway</CardTitle><p className="mt-1 text-xs leading-relaxed text-[#8EA0AC]">The protocol steps a judge should be able to follow.</p></CardHeader><CardContent className="space-y-5 px-6 pb-6"><FlowStep index="01" title="Ethereum Sepolia" detail="MeasurementSubmitted event returns txHash." state={pathwayState.source} /><FlowStep index="02" title="ProofBuilder" detail="Wait for source block attestation and fetch proof data." state={pathwayState.proof} /><FlowStep index="03" title="CC3 BlockProver" detail="Verify Merkle and continuity proofs on-chain." state={pathwayState.verify} /><FlowStep index="04" title="SignalProof settlement" detail="Release reward only after application checks pass." state={pathwayState.settle} /><Separator /><div className="rounded-xl bg-[#102A43] p-4 text-white"><div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#62DCCB]">Integration note</div><p className="mt-2 text-xs leading-relaxed text-white/60">The UI deliberately shows the waiting state. Cross-chain proof availability is asynchronous; it is not a synchronous button animation in production.</p></div></CardContent></Card><TrustBoundary snap={snap} /></div>}
 
