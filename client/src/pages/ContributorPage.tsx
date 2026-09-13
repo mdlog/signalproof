@@ -11,6 +11,7 @@ import ClaimReward from "@/components/ClaimReward";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useWalletContext } from "@/contexts/WalletContext";
 import { trpc } from "@/lib/trpc";
+import { qualityScore } from "@shared/quality";
 
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const CC3_TX = "https://creditcoin-testnet.blockscout.com/tx/";
@@ -60,10 +61,11 @@ export default function ContributorPage() {
 
       {valid && (
         <>
-          <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {[
               ["Submitted", s ? String(s.totals.submitted) : "—", "MeasurementSubmitted on Sepolia"],
               ["Settled", s ? String(s.totals.settled) : "—", s ? `${s.totals.awaiting} awaiting attestation` : ""],
+              ["Avg quality", s && s.measurements.length ? String(Math.round(s.measurements.reduce((a, m) => a + qualityScore(m.latencyMs, m.downloadMbps), 0) / s.measurements.length)) : "—", s && s.measurements.length ? `${s.measurements.length} sample${s.measurements.length === 1 ? "" : "s"} · 50 % latency, 50 % throughput` : ""],
               ["Earned", s ? `${formatCtc(s.totals.earnedWei)} CTC` : "—", "sum of MeasurementVerified rewards"],
               ["Unclaimed", s?.totals.unclaimedWei != null ? `${formatCtc(s.totals.unclaimedWei)} CTC` : "…", s?.totals.claimedWei != null ? `${formatCtc(s.totals.claimedWei)} CTC already claimed` : "reading claim history…"],
             ].map(([label, value, sub]) => (
@@ -78,7 +80,7 @@ export default function ContributorPage() {
               <CardHeader className="px-5 pb-2 pt-5"><CardTitle className="font-display text-xl">Measurements</CardTitle><p className="mt-1 text-xs text-[#8EA0AC]">{s ? `${s.measurements.length} on chain across ${s.areas.length} cell${s.areas.length === 1 ? "" : "s"}` : "Reading both chains…"}</p></CardHeader>
               <CardContent className="overflow-x-auto px-5 pb-5">
                 <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead><tr className="border-b border-[#EDF2F5] text-[10px] uppercase tracking-[0.13em] text-[#A0AFBB]"><th className="py-3 font-medium">When</th><th className="py-3 font-medium">Area</th><th className="py-3 font-medium">Latency</th><th className="py-3 font-medium">Download</th><th className="py-3 font-medium">Status</th><th className="py-3 font-medium">Reward</th><th className="py-3 text-right font-medium">Proof</th></tr></thead>
+                  <thead><tr className="border-b border-[#EDF2F5] text-[10px] uppercase tracking-[0.13em] text-[#A0AFBB]"><th className="py-3 font-medium">When</th><th className="py-3 font-medium">Area</th><th className="py-3 font-medium">Latency</th><th className="py-3 font-medium">Download</th><th className="py-3 font-medium">Quality</th><th className="py-3 font-medium">Status</th><th className="py-3 font-medium">Reward</th><th className="py-3 text-right font-medium">Proof</th></tr></thead>
                   <tbody>
                     {(s?.measurements ?? []).map((m) => (
                       <tr key={m.measurementRoot} className="border-b border-[#F0F3F5] last:border-0">
@@ -86,6 +88,7 @@ export default function ContributorPage() {
                         <td className="py-3"><Link href={`/area/${m.areaHash}`} className="font-mono text-xs text-[#147A70]">{m.areaHash}</Link></td>
                         <td className="py-3 text-xs">{m.latencyMs == null ? "—" : `${m.latencyMs} ms`}</td>
                         <td className="py-3 text-xs">{m.downloadMbps == null ? "—" : `${m.downloadMbps} Mbps`}</td>
+                        <td className="py-3">{(() => { const q = qualityScore(m.latencyMs, m.downloadMbps); const tone = q >= 80 ? "#31B7A6" : q >= 60 ? "#F4B95E" : "#F06A59"; return <span className="inline-flex items-center gap-1.5 font-display text-base font-bold" style={{ color: tone }} title={q >= 80 ? "strong" : q >= 60 ? "watch" : "attention"}><span className="h-2 w-2 rounded-full" style={{ backgroundColor: tone }} />{q}</span>; })()}</td>
                         <td className="py-3"><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${m.status === "SETTLED" ? "bg-[#DDF7F1] text-[#147A70]" : "bg-[#FFF0D2] text-[#9A6517]"}`}>{m.status === "SETTLED" ? "Settled" : "Awaiting"}</span></td>
                         <td className="py-3 text-xs">{m.rewardAmount ? `${formatCtc(m.rewardAmount)} CTC` : "—"}</td>
                         <td className="py-3 text-right"><Link href={`/verify/${m.measurementRoot}`} className="inline-flex items-center gap-1 text-xs font-semibold text-[#147A70]"><Search className="h-3.5 w-3.5" /> Verify</Link></td>
