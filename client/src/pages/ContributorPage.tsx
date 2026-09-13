@@ -61,7 +61,7 @@ export default function ContributorPage() {
 
       {valid && (
         <>
-          <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-5">
             {[
               ["Submitted", s ? String(s.totals.submitted) : "—", "MeasurementSubmitted on Sepolia"],
               ["Settled", s ? String(s.totals.settled) : "—", s ? `${s.totals.awaiting} awaiting attestation` : ""],
@@ -69,7 +69,7 @@ export default function ContributorPage() {
               ["Earned", s ? `${formatCtc(s.totals.earnedWei)} CTC` : "—", "sum of MeasurementVerified rewards"],
               ["Unclaimed", s?.totals.unclaimedWei != null ? `${formatCtc(s.totals.unclaimedWei)} CTC` : "…", s?.totals.claimedWei != null ? `${formatCtc(s.totals.claimedWei)} CTC already claimed` : "reading claim history…"],
             ].map(([label, value, sub]) => (
-              <Card key={label} className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="p-5"><div className="text-xs font-semibold text-[#6C8291]">{label}</div><div className="mt-3 font-display text-3xl font-bold">{value}</div><div className="mt-1 text-[11px] text-[#8EA0AC]">{sub}</div></CardContent></Card>
+              <Card key={label} className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="p-4 sm:p-5"><div className="text-xs font-semibold text-[#6C8291]">{label}</div><div className="mt-2 font-display text-2xl font-bold sm:mt-3 sm:text-3xl">{value}</div><div className="mt-1 text-[11px] text-[#8EA0AC]">{sub}</div></CardContent></Card>
             ))}
           </div>
 

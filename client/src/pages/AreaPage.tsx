@@ -92,7 +92,7 @@ export default function AreaPage() {
       <div className="mb-7 flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
         <div>
           <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.19em] text-[#F06A59]"><span className="h-px w-7 bg-[#F06A59]" /> Area report</div>
-          <h1 className="mt-3 font-display text-4xl font-bold leading-[1.04] tracking-[-0.04em]">{area} <span className="text-[#147A70]">{view ? `· quality ${view.quality}` : ""}</span></h1>
+          <h1 className="mt-3 font-display text-[28px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-4xl sm:tracking-[-0.04em]">{area} <span className="text-[#147A70]">{view ? `· quality ${view.quality}` : ""}</span></h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#6C8291]">{view?.cell ? `A geohash cell of about ${view.cell.widthM.toLocaleString()} × ${view.cell.heightM.toLocaleString()} m centred on ${view.cell.center.lat.toFixed(4)}, ${view.cell.center.lon.toFixed(4)}. Contributors are somewhere inside it — no coordinate was ever transmitted.` : view ? "An area whose label is not a geohash, so it cannot be placed on a map." : query.isLoading ? "Reading both chains…" : "No measurement on chain for this area."}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -110,14 +110,14 @@ export default function AreaPage() {
 
       {view && (
         <>
-          <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
             {[
               ["Quality", String(view.quality), "/ 100 — 50 % latency, 50 % throughput"],
               ["Samples", String(view.sampleCount), `${view.settledCount} settled · ${view.awaitingCount} awaiting`],
               ["Avg latency", view.avgLatencyMs == null ? "—" : `${view.avgLatencyMs} ms`, "median of 7 round trips per sample"],
               ["Avg download", view.avgDownloadMbps == null ? "—" : `${view.avgDownloadMbps} Mbps`, "3 MB incompressible payload per sample"],
             ].map(([label, value, sub]) => (
-              <Card key={label} className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="p-5"><div className="text-xs font-semibold text-[#6C8291]">{label}</div><div className="mt-3 font-display text-3xl font-bold">{value}</div><div className="mt-1 text-[11px] text-[#8EA0AC]">{sub}</div></CardContent></Card>
+              <Card key={label} className="rounded-xl border-[#DCE5EB] bg-white"><CardContent className="p-4 sm:p-5"><div className="text-xs font-semibold text-[#6C8291]">{label}</div><div className="mt-2 font-display text-2xl font-bold sm:mt-3 sm:text-3xl">{value}</div><div className="mt-1 text-[11px] text-[#8EA0AC]">{sub}</div></CardContent></Card>
             ))}
           </div>
 

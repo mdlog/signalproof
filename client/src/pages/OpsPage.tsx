@@ -48,7 +48,7 @@ export default function OpsPage() {
       <div className="mb-7 flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
         <div className="max-w-3xl">
           <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.19em] text-[#F06A59]"><span className="h-px w-7 bg-[#F06A59]" /> Operations</div>
-          <h1 className="mt-3 font-display text-4xl font-bold leading-[1.04] tracking-[-0.04em]">Is the rail <span className="text-[#147A70]">still paying?</span></h1>
+          <h1 className="mt-3 font-display text-[28px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-4xl sm:tracking-[-0.04em]">Is the rail <span className="text-[#147A70]">still paying?</span></h1>
           <p className="mt-4 text-sm leading-relaxed text-[#6C8291]">Relayer gas on both chains, the reward pool and how many settlements it still funds, the proof worker's last tick, and whether the RPCs are answering honestly. Refreshed every 15 seconds; nothing here is a secret.</p>
         </div>
         <div className="rounded-xl border border-[#DCE5EB] bg-white px-3 py-2 text-right"><div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#8EA0AC]">Generated</div><div className="mt-1 text-xs font-semibold text-[#426176]">{o ? new Date(o.generatedAt).toLocaleTimeString() : query.isLoading ? "reading…" : "—"}</div></div>

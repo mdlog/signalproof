@@ -93,7 +93,8 @@ export default function WalletControl({ wallet }: Props) {
           className="h-9 gap-2 rounded-lg bg-[#102A43] px-3 text-white hover:bg-[#1B3A57]"
         >
           <WalletCards className="h-4 w-4" />
-          <span>{wallet.status === "connecting" ? "Check your wallet…" : "Connect wallet"}</span>
+          <span className="hidden sm:inline">{wallet.status === "connecting" ? "Check your wallet…" : "Connect wallet"}</span>
+          <span className="sm:hidden">{wallet.status === "connecting" ? "Wallet…" : "Connect"}</span>
         </Button>
         {wallet.error && (
           <span className="max-w-[220px] text-right text-[10px] leading-tight text-[#B44A3C]">
@@ -152,7 +153,7 @@ export default function WalletControl({ wallet }: Props) {
         className="h-9 gap-2 rounded-lg border-[#DCE5EB] bg-white px-3 text-[#5F7585] hover:border-[#BFD1D9] hover:text-[#B44A3C]"
       >
         <LogOut className="h-4 w-4" />
-        <span>Disconnect</span>
+        <span className="hidden sm:inline">Disconnect</span>
       </Button>
     </div>
   );

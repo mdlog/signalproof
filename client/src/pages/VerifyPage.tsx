@@ -61,7 +61,7 @@ export default function VerifyPage() {
     <PageFrame title="Verify a proof" activeId="verify">
       <div className="mb-7 max-w-3xl">
         <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.19em] text-[#F06A59]"><span className="h-px w-7 bg-[#F06A59]" /> Public verifier</div>
-        <h1 className="mt-3 font-display text-4xl font-bold leading-[1.04] tracking-[-0.04em]">Any hash, both chains, <span className="text-[#147A70]">one answer.</span></h1>
+        <h1 className="mt-3 font-display text-[28px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-4xl sm:tracking-[-0.04em]">Any hash, both chains, <span className="text-[#147A70]">one answer.</span></h1>
         <p className="mt-4 text-sm leading-relaxed text-[#6C8291]">Paste a measurement root, the Sepolia transaction that committed it, or the Creditcoin transaction that settled it. The page shows what the two chains agree on and the Attestcoin proof the precompile verified. No key, no account — verification is never metered.</p>
       </div>
 

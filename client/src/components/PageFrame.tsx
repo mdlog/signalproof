@@ -20,11 +20,11 @@ export default function PageFrame({ title, activeId, children }: Props) {
       title={title}
       nav={[...CONSOLE_NAV, ...ROUTE_NAV]}
       activeId={activeId}
-      onSelect={() => navigate("/")}
+      onSelect={(id) => navigate(`/?mode=${id}`)}
       live={{ isLoading: onchain.isLoading && !snap, isLive, contributors: snap?.totals.contributors ?? 0, settled: snap?.totals.settled ?? 0 }}
       integration={integration.data}
     >
-      <div className="mx-auto max-w-[1480px] px-5 py-7 lg:px-9 lg:py-9">{children}</div>
+      <div className="mx-auto max-w-[1480px] px-4 py-5 sm:px-5 sm:py-7 lg:px-9 lg:py-9">{children}</div>
     </AppShell>
   );
 }

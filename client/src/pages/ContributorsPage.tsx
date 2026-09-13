@@ -48,7 +48,7 @@ export default function ContributorsPage() {
     <PageFrame title="Contributors" activeId="contributors">
       <div className="mb-7 max-w-3xl">
         <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.19em] text-[#F06A59]"><span className="h-px w-7 bg-[#F06A59]" /> The network</div>
-        <h1 className="mt-3 font-display text-4xl font-bold leading-[1.04] tracking-[-0.04em]">{rows.length} contributor{rows.length === 1 ? "" : "s"}, <span className="text-[#147A70]">{totalSettled} settled measurement{totalSettled === 1 ? "" : "s"}</span> across {cells} cell{cells === 1 ? "" : "s"}.</h1>
+        <h1 className="mt-3 font-display text-[28px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-4xl sm:tracking-[-0.04em]">{rows.length} contributor{rows.length === 1 ? "" : "s"}, <span className="text-[#147A70]">{totalSettled} settled measurement{totalSettled === 1 ? "" : "s"}</span> across {cells} cell{cells === 1 ? "" : "s"}.</h1>
         <p className="mt-4 text-sm leading-relaxed text-[#6C8291]">Every address that has a MeasurementSubmitted on Sepolia, ranked by how many of those were proven and settled on Creditcoin. Rewards are what the settlement contracts accrued to the address — claimable from the address's own wallet, never pushed.</p>
       </div>
 
@@ -69,10 +69,10 @@ export default function ContributorsPage() {
                     <td className="py-3">{mine ? (
                       <span className="flex flex-wrap items-center gap-2">
                         <Link href={`/contributors/${r.address}`} className="rounded-full bg-[#147A70] px-2.5 py-0.5 text-xs font-semibold text-white">You</Link>
-                        <Link href={`/contributors/${r.address}`} className="font-mono text-xs text-[#147A70]">{r.address}</Link>
+                        <Link href={`/contributors/${r.address}`} className="font-mono text-xs text-[#147A70]"><span className="hidden md:inline">{r.address}</span><span className="md:hidden">{r.address.slice(0, 8)}…{r.address.slice(-6)}</span></Link>
                       </span>
                     ) : (
-                      <Link href={`/contributors/${r.address}`} className="font-mono text-xs text-[#147A70]">{r.address}</Link>
+                      <Link href={`/contributors/${r.address}`} className="font-mono text-xs text-[#147A70]"><span className="hidden md:inline">{r.address}</span><span className="md:hidden">{r.address.slice(0, 8)}…{r.address.slice(-6)}</span></Link>
                     )}</td>
                     <td className="py-3 font-semibold">{r.settled}</td>
                     <td className="py-3 text-[#9A6517]">{r.awaiting || "—"}</td>
