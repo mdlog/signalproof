@@ -1,15 +1,19 @@
 <!-- trace: idea="SignalProof — verifiable connectivity data for DePIN: phone measurements committed on Ethereum Sepolia, proven by the Attestcoin Protocol, settled and rewarded on Creditcoin CC3 Testnet." | event="BUIDL CTC 2026 Fall" | deadline="2026-09-13 23:59 ET (2026-09-14 03:59 UTC) — re-verified live 2026-09-11 09:36 UTC: payload timelineEnd=1789358340, isExtended=true" | source=submission-packager -->
 # Submission — BUIDL CTC 2026 Fall (DoraHacks)
 
+**Submitted 2026-09-14 00:05 WIB (2026-09-13 17:05 UTC): BUIDL #48661 — https://dorahacks.io/buidl/48661 —
+listed under BUIDL CTC 2026 Fall, track DePIN, status "Under Review". The form answers below are what
+was pasted; the two 960-character fields (Description, Integration Summary) were shortened at the
+portal's limit and the full texts live on the BUIDL's Details page.**
+
 **Portal:** https://dorahacks.io/hackathon/buidl-ctc-2026-fall/detail → "Submit BUIDL". One track
 only (`isMultiTracksAllowed: false`): **DePIN**.
 **Deadline:** September 13, 2026, 23:59:00 ET = **2026-09-14 03:59 UTC** = 2026-09-14 10:59 WIB.
 Verified against the live payload at packaging time (`timelineEnd = 1789358340`, `isExtended: true`
 — it was extended once already from Sept 6; do not assume a second extension).
 
-**One value does not exist yet and must be filled before pasting:** `<DEMO_VIDEO_URL>` (no video
-yet). The repository and the deck are live — their URLs are already in Fields 2, 6 and 7. Search
-this file for `<` before you paste.
+Every URL is live — the repository, the deck and the demo video are in Fields 2, 6, 7 and 8. The
+numbers in Field 4 were re-read from the host on 2026-09-13 (25 settlements, 9 contributors, 4 cells).
 
 The form below mirrors the portal's `submissionForm` payload **field-for-field, in order**. Field 5
 is labelled "USC Integration Summary" in the form and "Attestcoin Protocol Integration Summary" on
@@ -50,7 +54,7 @@ What is built and live on testnet:
 
 - A browser measurement client that measures rather than asks: latency as the median of seven timed round trips read from Resource Timing, throughput from a 3 MB incompressible stream (the browser's own navigator.connection.downlink under-reported a real 40.8 Mbps link as 7.5), a precision-6 geohash for the area (~1.2 km x 0.6 km — the raw coordinate never leaves the function), and the browser's network class. The wallet is an identity, not a signer: the relayer pays gas on both chains, and the only user transaction is claim().
 - A gateway that recomputes the commitment, recovers the contributor's EIP-191 signature, enforces freshness, uniqueness and a per-cell rate limit (3 per contributor per cell per 10 minutes), and never returns signature, nonce or sessionHash.
-- SourceBatchRegistry on Sepolia — relayer-gated AND verifying the contributor's signature on-chain, so the relayer cannot forge attribution — with SignalProofSettlement and SignalProofBatchSettlement on CC3 Testnet: all verified on their explorers, eighteen live cross-chain settlements from six contributors across three geohash cells, including a 3-in-1 batch under one continuity proof, a 9.8-minute run through the signed registry, and a claim that moved 0.001 CTC from the pool to a contributor.
+- SourceBatchRegistry on Sepolia — relayer-gated AND verifying the contributor's signature on-chain, so the relayer cannot forge attribution — with SignalProofSettlement and SignalProofBatchSettlement on CC3 Testnet: all verified on their explorers, twenty-five live cross-chain settlements from nine contributors across four geohash cells, including a 3-in-1 batch under one continuity proof, a 9.8-minute run through the signed registry, and a claim that moved 0.001 CTC from the pool to a contributor.
 - A dashboard whose entire read model is a join of MeasurementSubmitted (Sepolia) and MeasurementVerified (Creditcoin). No database is needed to demo; a clone with RPC URLs shows real settlements. Every proof-queue row opens the live Attestcoin proof (attested height, Merkle path, continuity roots, the exact execute() call), and a pending row can be settled from the contributor's own wallet — execute() is permissionless, and the button shows it. The coverage map decodes each geohash and draws the cell, never a point; areas that are not geohashes are listed as unmapped rather than placed.
 - A buyer API whose access is paid into the reward pool: a buyer sends 0.05 CTC to SignalProofSettlement (its receive() credits the pool contributors claim() from), signs the transaction hash, and receives a stateless HMAC key that opens /v1/areas/{geohash}, /brief, /export.csv and /export.json. The catalog, the public verifier and the badges are free — what is metered is the service, not the data, which is public on two chains. First purchase on chain: 0xed00a0b6dd4ee0b4d4760665b0bedf3cdb7279dd0b5ded0124a5925021e08d30 (pool 4.997 → 5.047 CTC).
 - A public verifier, /verify/{hash}: a measurement root, the Sepolia commitment or the Creditcoin settlement resolves to the four-step rail — commitment, attestation, proof, settlement — each with its transaction, plus the Attestcoin proof; a hash outside the scanned window is reported as not found, never as invalid. An area page per geohash (cell on the map, quality over time, every sample, CSV/JSON export, an embeddable badge), a contributors leaderboard with per-address history and claim, an operations panel (relayer balances on both chains, pool runway in settlements, worker and RPC health, attestation lag), and an auto-measure mode that runs the same measurement every 10 minutes with a wallet signature per cycle.
@@ -61,7 +65,7 @@ Four things we found and fixed during the build, kept as inverted exploit tests:
 
 What is not built, stated plainly: no native app (the browser client is the measurement client; auto-measure needs a wallet signature per cycle by design), anti-Sybil is a rate limit and not a defence, buyer keys are stateless so a single key cannot be revoked and there is no retention policy, read direction only, and end-to-end latency of 9–13 minutes dominated by attestation. Nothing in the UI claims an on-chain result that does not exist.
 
-75 Foundry tests, 156 Vitest tests, pnpm smoke passes from a clean machine, pnpm e2e:surface checks the whole product surface against the live chains (28/28), and the whole thing runs in one container. MIT.
+75 Foundry tests, 185 Vitest tests, pnpm smoke passes from a clean machine, pnpm e2e:surface checks the whole product surface against the live chains (28/28), and the whole thing runs in one container. MIT.
 ```
 
 ## Field 5 — USC Integration Summary / Attestcoin Protocol Integration Summary (required)
@@ -210,6 +214,7 @@ Minimum team size is 1; delete unused columns.
 | GitHub Repository URL (must include a README) — form field 6 | ✓ done — https://github.com/mdlog/signalproof | Field 6 above |
 | Project Deck or Whitepaper (PDF URL) — form field 7 | ✓ done — raw GitHub PDF, 12 slides (re-rendered 2026-09-13) | Field 7 above |
 | Prototype Demo Video URL — form field 8 | ✓ done — https://youtu.be/a8pT_0w3Qa8 (4:07, uploaded 2026-09-13) | Field 8 above |
+| Form submitted on the portal | ✓ done — BUIDL #48661, "Under Review", track DePIN (2026-09-14 00:05 WIB) | https://dorahacks.io/buidl/48661 |
 | USC / Attestcoin Integration Summary — form field 5 | ✓ written | Field 5 above |
 | Project Name, Sector, Description — form fields 1, 3, 4 | ✓ written | Fields 1, 3, 4 above |
 | Project Logo (optional) — form field 2 | ✓ done — raw GitHub PNG, HTTP 200 | Field 2 above |
