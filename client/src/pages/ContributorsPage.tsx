@@ -65,7 +65,7 @@ export default function ContributorsPage() {
                   const mine = me !== null && r.address.toLowerCase() === me;
                   return (
                   <tr key={r.address} className={`border-b border-[#F0F3F5] last:border-0 ${mine ? "bg-[#F0FAF8]" : ""}`}>
-                    <td className="py-3 font-display text-lg font-bold text-[#102A43]">{r.rank}</td>
+                    <td className="py-3 pr-2 font-mono text-xs text-[#8EA0AC]">{r.rank}</td>
                     <td className="py-3">{mine ? (
                       <span className="flex flex-wrap items-center gap-2">
                         <Link href={`/contributors/${r.address}`} className="rounded-full bg-[#147A70] px-2.5 py-0.5 text-xs font-semibold text-white">You</Link>
