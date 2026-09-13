@@ -46,82 +46,109 @@ Do **not** run a local `pnpm dev` with the same relayer keys while the host runs
 
 ---
 
-## 3. The script
+## 3. The script — screen, action and words, in sync
 
-Format per shot: **timecode · screen · what you do · what you say.** Speak at ~155 words per minute; the main-path narration is ≈ 590 words ≈ 3:50, plus pauses while the screen speaks for itself.
+Each row is one sentence. **Screen shows** is what must be visible (and, in bold, what the cursor rests on) while the sentence is spoken; move to the next row's element on the last word of the previous sentence. Speak at ~155 words per minute; the main path is ≈ 620 words ≈ 4:00 including the pauses marked *(pause)*.
 
-### Shot 1 — cold open · 0:00–0:14 · Verifier
+### Shot 1 — cold open · 0:00–0:14 · `/verify/0x60d9e4…a2b5`
 
-**Do:** the page is already open. Let it sit 3 s, then slowly scroll to the **Attestcoin proof — what the precompile verified** panel.
-
-**Say:**
-> "This measurement was taken on a phone in Jakarta, committed on Ethereum Sepolia, proven by the Attestcoin Protocol, and settled on Creditcoin — where a smart contract, not a server, decided it was real. Every step is a transaction you can open. This is SignalProof."
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 0:00 | Verifier page, result card: **"Settled on Creditcoin"** header with the green **SETTLED** pill; below it *Area qqguw6 · contributor 0x5360…8c93* | Nothing for 2 s — let it sit | *(pause)* |
+| 0:02 | Same card; cursor on the **Measurement root** row (step 1, green check) | Rest the cursor on the root hash | "This measurement was taken on a phone in Jakarta," |
+| 0:05 | Cursor moves down the rail: **Committed on Ethereum Sepolia** → **Attested by Creditcoin** → **Settled on Creditcoin CC3**, each with its green check | Trace the four steps top to bottom | "committed on Ethereum Sepolia, proven by the Attestcoin Protocol, and settled on Creditcoin —" |
+| 0:09 | The **Attestcoin proof — what the precompile verified** panel scrolled into view (attested height, Merkle inclusion, continuity, execute()) | Scroll so the whole panel is visible | "where a smart contract, not a server, decided it was real." |
+| 0:12 | Cursor on an **explorer ↗** link beside a hash | Hover, don't click | "Every step is a transaction you can open. This is SignalProof." |
 
 ### Shot 2 — the problem · 0:14–0:36 · Coverage overview
 
-**Do:** click **Coverage overview**. Hover the map so the cells and their logo pins are visible; hover one pin so the tooltip shows `quality`.
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 0:14 | Sidebar **Coverage overview** clicked; hero *"Know where the signal breaks before users do."* and the four KPI cards (Verified coverage 100 %, Measurements, Median latency, Rewards settled) | Click the sidebar item, leave the cursor off the cards | "Anyone can claim coverage numbers. Nobody can prove them." |
+| 0:19 | Scroll to the **Coverage signal map** card; three logo pins on the Java–Sulawesi map, shaded cells | Scroll one screen down | "SignalProof turns each phone measurement into a claim a contract can check, and aggregates it per area." |
+| 0:25 | Cursor on the **shaded rectangle** around the `qqguw6` pin (zoom in one step so the box is obvious) | Click **+** once on the map, rest the cursor on the box edge | "Each box is a geohash cell about one kilometre wide — a contributor is somewhere inside it, never at a point." |
+| 0:32 | Hover the pin: tooltip **`qqguw6 · quality 94`**; the legend *"shaded box = geohash cell"* at the bottom-left | Hover the pin | "The raw coordinate never leaves the phone." |
 
-**Say:**
-> "Anyone can claim coverage numbers. Nobody can prove them. SignalProof turns each phone measurement into a claim a contract can check, and aggregates it per area. Each box is a geohash cell about one kilometre wide — a contributor is somewhere inside it, never at a point. The raw coordinate never leaves the phone."
+### Shot 3 — how it works · 0:36–1:08 · GitHub README, Architecture diagram
 
-### Shot 3 — how it works · 0:36–1:08 · README architecture diagram
-
-**Do:** switch to the GitHub tab, already scrolled to the Architecture flowchart. Trace left to right with the cursor as you speak.
-
-**Say:**
-> "The pipeline. The phone measures and signs; the gateway checks the signature and relays to a registry on Sepolia, which recovers the signature again on-chain. Attestcoin attests Sepolia blocks on Creditcoin; once our block is attested, the proof service returns a Merkle inclusion proof and a continuity proof. Our settlement contract hands that proof to the BlockProver precompile — and only if it verifies does the contributor earn a reward. Buyers pay into that same pool. Two chains, no oracle operator in the middle."
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 0:36 | GitHub tab, the Mermaid flowchart fully visible: subgraphs *Contributor device · SignalProof server · Ethereum Sepolia · Attestcoin Protocol · Creditcoin CC3 Testnet · Consumers* | Switch tab; cursor on **Measure** then **Wallet** in the device box | "The pipeline. The phone measures and signs;" |
+| 0:40 | Cursor on **Gateway (tRPC)** → follows the arrow to **Relayer** → to **SourceBatchRegistry** (Sepolia box) | Trace the arrow | "the gateway checks the signature and relays to a registry on Sepolia, which recovers the signature again on-chain." |
+| 0:47 | Cursor on **Attestation** then **Proof service** in the Attestcoin box | Trace the dotted *block attested* arrow into Attestcoin | "Attestcoin attests Sepolia blocks on Creditcoin; once our block is attested, the proof service returns a Merkle inclusion proof and a continuity proof." |
+| 0:55 | Cursor on **Proof worker** → *execute(proof)* arrow → **BlockProver precompile** → **SignalProofSettlement** → **Reward pool** | Trace into the CC3 box | "Our settlement contract hands that proof to the BlockProver precompile — and only if it verifies does the contributor earn a reward." |
+| 1:03 | Cursor on **Buyer → 0.05 CTC → Reward pool** (bottom-right arrow) | Rest on the arrow | "Buyers pay into that same pool. Two chains, no oracle operator in the middle." |
 
 ### Shot 4 — connect and measure · 1:08–1:50 · Run a test
 
-**Do:** back to the app. Click **Connect wallet** → RainbowKit lists the installed wallets → click **MetaMask** → approve. Header shows the **CC3** chip and your address. Sidebar **Run a test**. Click **Run valid test**. Watch the ring spin, the four tiles fill (network class, coarse area, latency, throughput). MetaMask asks for a signature → approve. The label reads **"sent to gateway"**, then **"N blocks to attestation · ~M min"**.
-
-**Say (while it runs):**
-> "A real one. I connect a wallet — it needs no balance; the relayer pays gas on both chains. Run valid test: the browser measures latency as the median of seven timed round trips, throughput from a three-megabyte incompressible download, and turns my position into a six-character geohash before anything leaves the device. My wallet signs the measurement — free, no gas. The gateway recomputes the hash, recovers the signer, and relays it to Sepolia. Now the honest part: Creditcoin attests Sepolia about ten blocks every two minutes, so this settles in roughly eight minutes. We'll come back to it."
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 1:08 | App tab; header **Connect wallet** → RainbowKit dialog *"Connect a Wallet"* with the **Installed** list (MetaMask among them) | Click **Connect wallet**, then **MetaMask** | "A real one. I connect a wallet —" |
+| 1:12 | MetaMask popup *"Connect with MetaMask"* → approve; header now shows **CC3** chip + your short address | Approve in MetaMask | "it needs no balance; the relayer pays gas on both chains." |
+| 1:16 | Sidebar **Run a test**; card *"Capture a signal snapshot."*; dial shows the logo, **Run valid test** button | Click **Run a test**, then **Run valid test** | "Run valid test:" |
+| 1:19 | Dial ring **spinning in colour**, status *"Sampling network…"*; tiles fill in order — **Coarse area** (`qqguw6`, *±NN m → cell 1216×607 m · coordinate discarded*), **Network class**, **Latency** (*median of 7 round trips*), **Throughput** (*3.00 MB over 0.6 s*) | Hover each tile as it fills | "the browser measures latency as the median of seven timed round trips, throughput from a three-megabyte incompressible download, and turns my position into a six-character geohash before anything leaves the device." |
+| 1:31 | MetaMask popup *"Signature request"* showing the text *SignalProof measurement…* | Approve | "My wallet signs the measurement — free, no gas." |
+| 1:35 | *Evidence pipeline* label changes **"sent to gateway"** → step 02 **Source-chain event** turns green → **"N blocks to attestation · ~M min"** with the *attested height / your block* box | Rest the cursor on the countdown label | "The gateway recomputes the hash, recovers the signer, and relays it to Sepolia." |
+| 1:41 | The countdown box: **attested height** and **your block**, note *"Creditcoin attests Sepolia in batches of ~10 blocks, about every 2 minutes"* | Hover the box | "Now the honest part: Creditcoin attests Sepolia about ten blocks every two minutes, so this settles in roughly eight minutes. We'll come back to it." |
 
 ### Shot 5 — the proof, on screen · 1:50–2:12 · Proof queue → View proof
 
-**Do:** sidebar **Proof queue**. On a **Settled** card click **View proof**. Point at *Attested height*, *Merkle inclusion* (the siblings), *Continuity* (the roots), and the `execute()` row with the selector and gas ceiling.
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 1:50 | Sidebar **Proof queue**; filter **All (N) · Settled · Awaiting**; the top card is **Settled** (green check, *Proof verified on Creditcoin. Reward 0.001 CTC released.*) | Click **Proof queue**, then **View proof** on the first settled card | "This is what the precompile is given, fetched live with no key:" |
+| 1:54 | The proof panel opens under the card: **Attested height** `11,681,452 (Sepolia block, tx index 96)` | Cursor on the *Attested height* row | "the attested Sepolia height," |
+| 1:57 | **Merkle inclusion** row: *root 0x145d… · 7 siblings: R 0x8b77…, L 0xbf56…* | Cursor on the row | "seven Merkle siblings up to the block's transaction root," |
+| 2:01 | **Continuity** row: *49 roots from lower endpoint 0x3e60…* | Cursor on the row | "and the continuity roots that chain the block back to an attestation checkpoint —" |
+| 2:05 | **execute()** row: *selector 0xc6339bf7 · action 0 · calldata 4,484 bytes · gas ceiling 858,000* | Cursor on the row | "packed into one execute call." |
+| 2:08 | The panel's footnote *"Anyone holding this proof may call execute(); the settlement contract then checks…"* | Rest on the footnote | "Anyone holding this proof may call it. That is by design." |
 
-**Say:**
-> "This is what the precompile is given, fetched live with no key: the attested Sepolia height, seven Merkle siblings up to the block's transaction root, and the continuity roots that chain the block back to an attestation checkpoint — packed into one execute call. Anyone holding this proof may call it. That is by design."
+### Shot 6 — what the precompile does not check · 2:12–2:50 · Blockscout logs → the contract
 
-### Shot 6 — what the precompile does not check · 2:12–2:50 · Blockscout logs, then the contract
-
-**Do:** click **Open on explorer** on the settled card → Blockscout → **Logs** tab; hover `MeasurementVerified` with `measurementRoot`, `areaHash`, `contributor`, `rewardAmount`. Switch to the GitHub tab with `SignalProofSettlement.sol` scrolled to the two `revert` lines.
-
-**Say:**
-> "The settlement on Creditcoin: MeasurementVerified, with the root, the area, the contributor and the reward. The precompile proves inclusion in an attested block — and only that. It does not prove the transaction succeeded, or which contract emitted the log. So we check both: receipt status must be one, and the log must come from our registry. That second check is missing from the SimpleMinterASC example in the Attestcoin docs; without it, anyone can prove a forged event from a lookalike registry and drain the pool. Our end-to-end test runs that attack, and only the emitter binding stops it."
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 2:12 | Blockscout transaction page, **Logs** tab: `MeasurementVerified` decoded — **measurementRoot**, **areaHash**, **contributor**, **rewardAmount** | Click **Open on explorer** on the settled card, open **Logs** | "The settlement on Creditcoin: MeasurementVerified, with the root, the area, the contributor and the reward." |
+| 2:20 | Same log; cursor on the **From** / contract address `0x8F14…b584` | Hover the address | "The precompile proves inclusion in an attested block — and only that." |
+| 2:24 | GitHub tab, `contracts/src/SignalProofSettlement.sol`, scrolled to the two `revert` lines (`SourceTransactionFailed`, `WrongEmitter`) | Switch tab | "It does not prove the transaction succeeded, or which contract emitted the log." |
+| 2:29 | Cursor on `if (receipt.receiptStatus != 1) revert SourceTransactionFailed(…)` | Highlight the line by selecting it | "So we check both: receipt status must be one," |
+| 2:32 | Cursor on `if (log.address_ != sourceRegistry) revert WrongEmitter(…)` | Select the line | "and the log must come from our registry." |
+| 2:35 | Scroll up two screens to the comment block above the hook that names the missing check | Show the comment | "That second check is missing from the SimpleMinterASC example in the Attestcoin docs; without it, anyone can prove a forged event from a lookalike registry and drain the pool." |
+| 2:44 | Same tab, file switcher to `contracts/test/EndToEnd.t.sol`, function name **`test_forgedRegistryCannotSettleEvenWithValidProof`** visible | Open the test file (pre-opened in a third tab is faster) | "Our end-to-end test runs that attack, and only the emitter binding stops it." |
 
 ### Shot 7 — settlement on camera · 2:50–3:03 · Proof queue
 
-**Do:** sidebar **Proof queue**. The pre-warmed card should be **Settled** now, or flip on the next 15-second poll. If it is still amber, click **Settle from my wallet** on it (MetaMask confirms `execute()` — your wallet pays CC3 gas) and let the card flip. If attestation is genuinely late, use the fallback line.
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 2:50 | App tab, **Proof queue**, the pre-warmed card at the top: pill flips **Awaiting attestation → Settled**, detail line *"Proof verified on Creditcoin. Reward 0.001 CTC released."*, sidebar badge count drops | Click **Proof queue**; wait for the 15 s poll if needed | "And the measurement I submitted before recording has just settled: proof verified, reward accrued." |
+| 2:57 | Footer of the sidebar **"Live · N settled on CC3"** and the header **CC3 TESTNET · LIVE** | Rest the cursor on the footer | "Nothing here comes from a database — the dashboard is a join of the two chains' logs." |
 
-**Say (settled):**
-> "And the measurement I submitted before recording has just settled: proof verified, reward accrued. Nothing here comes from a database — the dashboard is a join of the two chains' logs."
-
-**Say (fallback, still amber):**
-> "The measurement I submitted before recording is still a few blocks from attestation — that is the real cadence of the protocol, so I won't fake it. Here is the one that settled just before we started."
+*Fallback (card still amber):* screen shows the amber card with **"N blocks to attestation"**; cursor on the countdown. Say: "The measurement I submitted before recording is still a few blocks from attestation — that is the real cadence of the protocol, so I won't fake it. Here is the one that settled just before we started." — then click **View proof** on the settled card below it.
 
 ### Shot 8 — the buyer pays the contributors · 3:03–3:38 · Data products → Buy API access → area page
 
-**Do:** in MetaMask switch to account B (buyer). Sidebar **Data products**. Click **Buy API access — 0.05 CTC** → MetaMask confirms a 0.05 CTC transfer → MetaMask signs a message → the green card reads **Key active until …**. Click **Area brief** on the `qqguw6` card; close it; click the card title to open `/area/qqguw6`; click **CSV**.
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 3:03 | MetaMask switched to **account B**; sidebar **Data products**; the **API ACCESS** card: *"0.05 CTC for 30 days, paid into the reward pool."* with the three numbered steps | Switch account, click **Data products** | "The other side of the market. A buyer pays 0.05 CTC for thirty days of access —" |
+| 3:09 | Button text **"Confirm the payment in your wallet…"**; MetaMask popup *Send 0.05 CTC to 0x8F14…b584* | Click **Buy API access — 0.05 CTC**, confirm | "a plain transfer into the settlement contract, the same pool contributors claim from." |
+| 3:15 | Button **"Waiting for the block…"** then MetaMask *Signature request* **"SignalProof API access / Transaction: 0x… / Address: 0x…"** | Sign | "The buyer signs the transaction hash," |
+| 3:19 | Green card **"Key active until <date>"**, the `sp1_…` key, **Copy key · Copy curl · Payment on Blockscout** | Rest the cursor on the key | "the server verifies the payment on chain and returns a key derived from it; nothing is stored." |
+| 3:24 | Area card `qqguw6` → **Area brief** → dialog *"Area brief — qqguw6"* with the markdown and the provenance table | Click **Area brief**, scroll the dialog once, close it | "What is metered is the service — per-area samples with provenance, briefs, exports — not the data, which is public on two chains." |
+| 3:31 | `/area/qqguw6`: title *qqguw6 · quality NN*, KPI strip, **The cell** map, **Quality over time** chart, **Every sample** table with *Verify* links | Click the card title | "Here is an area: the cell, quality over time, every sample with its two transactions," |
+| 3:36 | Click **CSV**: the browser's download bar shows `signalproof-qqguw6.csv` | Click **CSV** | "and a CSV." |
 
-**Say:**
-> "The other side of the market. A buyer pays 0.05 CTC for thirty days of access — a plain transfer into the settlement contract, the same pool contributors claim from. The buyer signs the transaction hash, the server verifies the payment on chain and returns a key derived from it; nothing is stored. What is metered is the service — per-area samples with provenance, briefs, exports — not the data, which is public on two chains. Here is an area: the cell, quality over time, every sample with its two transactions, and a CSV."
+### Shot 9 — the network, operated · 3:38–3:52 · Operations → Contributors
 
-### Shot 9 — the network, operated · 3:38–3:52 · Operations, Contributors
-
-**Do:** sidebar **Operations**: point at **Runway** (the pool just grew by 0.05 CTC). Sidebar **Contributors**: the leaderboard.
-
-**Say:**
-> "Operations shows the pool's runway in settlements — it just went up by fifty — and relayer gas on both chains. Contributors shows the network: nine addresses across four cells, each with claimable rewards."
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 3:38 | `/ops`: **Reward pool** card — *Pool balance*, *Reward per measurement 0.001 CTC*, **Runway N settlements** (50 higher than before shot 8) | Click **Operations**, cursor on **Runway** | "Operations shows the pool's runway in settlements — it just went up by fifty —" |
+| 3:44 | **Relayer gas** card: *Sepolia ETH*, *Creditcoin CTC* | Cursor on the balances | "and relayer gas on both chains." |
+| 3:47 | `/contributors`: headline *"9 contributors, N settled measurements across 4 cells."* and the **Leaderboard** table (rank, address, settled, cells, accrued) | Click **Contributors** | "Contributors shows the network: nine addresses across four cells, each with claimable rewards." |
 
 ### Shot 10 — close · 3:52–4:00 · End card
 
-**Do:** end card: logo, `signalproof.mdloglabs.org`, `github.com/mdlog/signalproof`, "BUIDL CTC 2026 Fall · DePIN track".
-
-**Say:**
-> "SignalProof — verifiable connectivity data, settled on Creditcoin. Everything you saw is live on testnet; the repository, the deck and the verifier are linked below."
+| Time | Screen shows | You do | You say |
+|---|---|---|---|
+| 3:52 | End card: the logo, **signalproof.mdloglabs.org**, **github.com/mdlog/signalproof**, *BUIDL CTC 2026 Fall · DePIN track* (deck slide 12 works) | Cut to the still | "SignalProof — verifiable connectivity data, settled on Creditcoin." |
+| 3:56 | Same card | Hold 4 s | "Everything you saw is live on testnet; the repository, the deck and the verifier are linked below." |
 
 ---
 
