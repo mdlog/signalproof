@@ -76,6 +76,9 @@ body {
 }
 button, a { transition: color 180ms ease-out, background-color 180ms ease-out, border-color 180ms ease-out, transform 180ms ease-out, opacity 180ms ease-out, box-shadow 180ms ease-out; }
 button:active { transform: scale(.98); }
+/* Tailwind v4 leaves buttons with the arrow cursor while links get the hand; everything clickable shows the same hand. */
+button:not(:disabled), [role="button"]:not(:disabled), summary { cursor: pointer; }
+button:disabled, [role="button"]:disabled { cursor: not-allowed; }
 .font-display { font-family: "Space Grotesk", sans-serif; }
 .font-mono { font-family: "IBM Plex Mono", monospace; }
 ::selection { background: #31B7A6; color: #102A43; }
