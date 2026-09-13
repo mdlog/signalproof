@@ -8,7 +8,7 @@
  */
 import { useState, type ReactNode } from "react";
 import { Link } from "wouter";
-import { Activity, ExternalLink, Grid2X2, Layers3, Menu, Network, Search, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
+import { Activity, BookOpen, ExternalLink, Grid2X2, Layers3, Menu, Network, Search, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import WalletControl, { WrongChainBanner } from "@/components/WalletControl";
 import { useWalletContext } from "@/contexts/WalletContext";
@@ -31,6 +31,7 @@ export const ROUTE_NAV: ShellNavItem[] = [
   { id: "verify", label: "Verify a proof", icon: Search, href: "/verify" },
   { id: "contributors", label: "Contributors", icon: Users, href: "/contributors" },
   { id: "ops", label: "Operations", icon: Activity, href: "/ops" },
+  { id: "docs", label: "Docs", icon: BookOpen, href: "/docs" },
 ];
 
 export type ShellLive = { isLoading: boolean; isLive: boolean; contributors: number; settled: number };

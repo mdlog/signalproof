@@ -4,6 +4,8 @@
 
 Submission for [BUIDL CTC 2026 Fall](https://dorahacks.io/hackathon/buidl-ctc-2026-fall/detail) — **DePIN track**.
 
+**Documentation:** every running instance serves its own docs at `/docs` — quickstart, concepts, architecture, the Attestcoin integration, the API and contract references, the security model and an operations runbook. The sources are markdown in [`docs/site/`](docs/site/), readable on GitHub without running anything: start with the [introduction](docs/site/introduction.md).
+
 ---
 
 ## What it does
@@ -561,11 +563,14 @@ server/signalproof/              Server-side only — the SDK is CommonJS with n
   buyerApi.ts                      the /v1 HTTP surface
 
 client/src/pages/                one file per route: Home (console), VerifyPage, AreaPage,
-                                 ContributorsPage, ContributorPage, OpsPage
+                                 ContributorsPage, ContributorPage, OpsPage, DocsPage
+client/src/docs/manifest.ts      the docs site: reading order, groups, one markdown file per page
+docs/site/*.md                   the documentation itself, rendered at /docs and readable on GitHub
 client/src/components/AppShell   sidebar, header, wallet control — shared by every route
 client/src/hooks/useMeasurementRun.ts  the measurement sequence, shared by the button and auto-measure
 
 server/routers.ts                tRPC gateway
+shared/docsToc.ts / docsSearch.ts headings, cross-links and full-text search over the docs, unit-tested
 drizzle/schema.ts                users + measurements
 docs/superpowers/specs/          design document for this work
 ```

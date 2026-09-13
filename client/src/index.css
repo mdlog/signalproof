@@ -1,6 +1,7 @@
 /* SignalProof product UI: civic infrastructure operations console. Signal navy = trust, aqua = verified, coral = attention, mist = calm evidence surfaces. */
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 

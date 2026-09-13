@@ -11,6 +11,7 @@ import AreaPage from "./pages/AreaPage";
 import ContributorsPage from "./pages/ContributorsPage";
 import ContributorPage from "./pages/ContributorPage";
 import OpsPage from "./pages/OpsPage";
+import DocsPage from "./pages/DocsPage";
 
 /**
  * Real routes, so a proof, an area or a contributor has a URL that can be shared. The console at
@@ -26,6 +27,8 @@ function Router() {
       <Route path={"/contributors"} component={ContributorsPage} />
       <Route path={"/contributors/:address"} component={ContributorPage} />
       <Route path={"/ops"} component={OpsPage} />
+      <Route path={"/docs"} component={DocsPage} />
+      <Route path={"/docs/:slug"} component={DocsPage} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
