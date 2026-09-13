@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BrowserProvider } from "ethers";
+import { dedupeAnnouncements, pickWallet, WALLET_PREFERENCE_KEY, type WalletInfo } from "@/lib/walletChoice";
 import { buildMeasurementSigningMessage } from "@shared/measurement";
 
 /** Creditcoin CC3 Testnet, for wallet_addEthereumChain. 102031 = 0x18e8f. */
@@ -36,6 +36,7 @@ export const CLAIM_SELECTOR = "0x4e71d92d";
 export type WalletStatus =
   | "unsupported" // no injected provider found at all
   | "disconnected"
+  | "choosing" // several wallets are installed and none was chosen yet
   | "connecting"
   | "connected";
 
@@ -46,6 +47,8 @@ export type WalletState = {
   /** Human-readable, already mapped from EIP-1193 error codes. Never a raw provider message. */
   error: string | null;
   walletName: string | null;
+  /** Installed wallets to choose from, only while status is "choosing". */
+  choices: WalletInfo[];
 };
 
 type Eip1193Provider = {
@@ -55,9 +58,15 @@ type Eip1193Provider = {
 };
 
 /** EIP-1193 error codes we can say something useful about. */
-function describeError(err: unknown, action = "the connection request"): string {
+function describeError(err: unknown, action = "the connection request", walletName: string | null = null): string {
   const code = (err as { code?: number })?.code;
-  if (code === 4001) return action === "the connection request" ? "You rejected the connection request." : `You declined ${action}.`;
+  // Named, because with several wallets installed the one that answered may not be the one the
+  // user was looking at: "Rabby Wallet rejected…" explains what "You rejected…" hid.
+  if (code === 4001) {
+    return action === "the connection request"
+      ? `${walletName ?? "The wallet"} rejected the connection request. Unlock it, or choose another wallet.`
+      : `${walletName ?? "The wallet"} declined ${action}.`;
+  }
   if (code === -32002) return "A connection request is already open in your wallet. Check it.";
   if (code === 4900) return "Your wallet is disconnected from all chains.";
   if (code === 4901) return "Your wallet is not connected to the requested chain.";
@@ -88,27 +97,71 @@ export function useWallet() {
     chainId: null,
     error: null,
     walletName: null,
+    choices: [],
   });
   const providerRef = useRef<Eip1193Provider | null>(null);
+  /** Every EIP-6963 announcement seen, so a chosen uuid can be mapped back to its provider. */
+  const announcedRef = useRef<Map<string, { info: WalletInfo; provider: Eip1193Provider }>>(new Map());
 
   /** Discover a provider: EIP-6963 first, then the legacy window.ethereum. */
+  /**
+   * Every installed wallet, through EIP-6963; the legacy window.ethereum as a last resort.
+   *
+   * ethers' own discover() returns the FIRST wallet that announces itself, which on a machine with
+   * several extensions is whichever loaded first — not the one the user meant. One such machine
+   * had eleven, led by Rabby, and every "Connect wallet" click went there.
+   */
+  const discoverAll = useCallback(async (): Promise<WalletInfo[]> => {
+    const announced: Array<{ info: WalletInfo; provider: Eip1193Provider }> = [];
+    const onAnnounce = (event: Event) => {
+      const detail = (event as CustomEvent<{ info: WalletInfo; provider: Eip1193Provider }>).detail;
+      if (detail?.info?.uuid && typeof detail.provider?.request === "function") announced.push(detail);
+    };
+    window.addEventListener("eip6963:announceProvider", onAnnounce);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    await new Promise((r) => setTimeout(r, 400));
+    window.removeEventListener("eip6963:announceProvider", onAnnounce);
+
+    for (const a of announced) announcedRef.current.set(a.info.uuid, a);
+    const unique = dedupeAnnouncements(announced.map((a) => a.info));
+    if (unique.length > 0) return unique;
+
+    const legacy = injected();
+    if (legacy) {
+      const info: WalletInfo = { uuid: "legacy", name: "Injected wallet", rdns: "legacy", icon: "" };
+      announcedRef.current.set("legacy", { info, provider: legacy });
+      return [info];
+    }
+    return [];
+  }, []);
+
+  const rememberedRdns = (): string | null => {
+    try {
+      return localStorage.getItem(WALLET_PREFERENCE_KEY);
+    } catch {
+      return null;
+    }
+  };
+
+  const adopt = (info: WalletInfo): Eip1193Provider | null => {
+    const entry = announcedRef.current.get(info.uuid);
+    if (!entry) return null;
+    setState((s) => ({ ...s, walletName: info.name, choices: [] }));
+    providerRef.current = entry.provider;
+    return entry.provider;
+  };
+
+  /**
+   * Discover a provider without asking: the test seam, then the remembered wallet, then the only
+   * wallet. With several wallets and no memory this returns null — the silent paths (reconnect on
+   * load, claim, sign) stay silent, and connect() is the one place that asks.
+   */
   const discover = useCallback(async (): Promise<Eip1193Provider | null> => {
     const test = testProvider();
     if (test) return test;
-    try {
-      const found = await BrowserProvider.discover({ timeout: 400 });
-      if (found) {
-        const info = (found as unknown as { providerInfo?: { name?: string } }).providerInfo;
-        if (info?.name) setState((s) => ({ ...s, walletName: info.name! }));
-        // Unwrap to the raw EIP-1193 provider so we can subscribe to its events.
-        const raw = (found as unknown as { provider?: Eip1193Provider }).provider;
-        if (raw?.request) return raw;
-      }
-    } catch {
-      // discover() rejects when nothing announces itself; the legacy path still may work.
-    }
-    return injected();
-  }, []);
+    const choice = pickWallet(await discoverAll(), rememberedRdns());
+    return choice.kind === "pick" ? adopt(choice.wallet) : null;
+  }, [discoverAll]);
 
   /**
    * Restore an existing authorisation without prompting.
@@ -121,13 +174,18 @@ export function useWallet() {
     let unsubscribe: (() => void) | null = null;
 
     (async () => {
-      const provider = await discover();
+      const test = testProvider();
+      const wallets = test ? [] : await discoverAll();
       if (cancelled) return;
 
-      if (!provider) {
+      if (!test && wallets.length === 0) {
         setState((s) => ({ ...s, status: "unsupported" }));
         return;
       }
+      // Several wallets and nothing remembered: stay "disconnected" and let the click ask.
+      const choice = test ? null : pickWallet(wallets, rememberedRdns());
+      const provider = test ?? (choice?.kind === "pick" ? adopt(choice.wallet) : null);
+      if (!provider) return;
       providerRef.current = provider;
 
       try {
@@ -175,17 +233,10 @@ export function useWallet() {
       cancelled = true;
       unsubscribe?.();
     };
-  }, [discover]);
+  }, [discoverAll]);
 
-  const connect = useCallback(async () => {
-    // A test provider set after mount must still win: the click is the moment it is looked for.
-    const provider = testProvider() ?? providerRef.current ?? (await discover());
-    if (!provider) {
-      setState((s) => ({ ...s, status: "unsupported" }));
-      return;
-    }
+  const requestAccounts = useCallback(async (provider: Eip1193Provider) => {
     providerRef.current = provider;
-
     setState((s) => ({ ...s, status: "connecting", error: null }));
     try {
       const accounts = (await provider.request({ method: "eth_requestAccounts" })) as string[];
@@ -198,9 +249,53 @@ export function useWallet() {
         error: null,
       }));
     } catch (err) {
-      setState((s) => ({ ...s, status: "disconnected", error: describeError(err) }));
+      setState((s) => ({
+        ...s,
+        status: "disconnected",
+        error: describeError(err, "the connection request", s.walletName),
+      }));
     }
-  }, [discover]);
+  }, []);
+
+  const connect = useCallback(async () => {
+    // A test provider set after mount must still win: the click is the moment it is looked for.
+    const test = testProvider();
+    if (test) return requestAccounts(test);
+    if (providerRef.current) return requestAccounts(providerRef.current);
+
+    const choice = pickWallet(await discoverAll(), rememberedRdns());
+    if (choice.kind === "none") {
+      setState((s) => ({ ...s, status: "unsupported" }));
+      return;
+    }
+    if (choice.kind === "ask") {
+      setState((s) => ({ ...s, status: "choosing", choices: choice.wallets, error: null }));
+      return;
+    }
+    const provider = adopt(choice.wallet);
+    if (provider) await requestAccounts(provider);
+  }, [discoverAll, requestAccounts]);
+
+  /** The user picked one of several installed wallets; remember it and connect. */
+  const chooseWallet = useCallback(
+    async (uuid: string) => {
+      const entry = announcedRef.current.get(uuid);
+      if (!entry) return;
+      try {
+        localStorage.setItem(WALLET_PREFERENCE_KEY, entry.info.rdns);
+      } catch {
+        /* a private window forgets; connecting still works */
+      }
+      const provider = adopt(entry.info);
+      if (provider) await requestAccounts(provider);
+    },
+    [requestAccounts],
+  );
+
+  /** Back out of the wallet list without connecting. */
+  const cancelChoice = useCallback(() => {
+    setState((s) => ({ ...s, status: "disconnected", choices: [] }));
+  }, []);
 
   /**
    * Forget the connection locally.
@@ -415,7 +510,7 @@ export function useWallet() {
     [discover, state.address],
   );
 
-  return { ...state, connect, disconnect, switchToCreditcoin, claimReward, sendSettlement, sendValue, signText, signMeasurement };
+  return { ...state, connect, chooseWallet, cancelChoice, disconnect, switchToCreditcoin, claimReward, sendSettlement, sendValue, signText, signMeasurement };
 }
 
 /** Names the chains a user is plausibly on, so the banner can say more than a bare number. */

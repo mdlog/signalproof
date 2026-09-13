@@ -273,7 +273,7 @@ export async function measureLocation(): Promise<LocationResult> {
   if (accuracyM > MAX_USABLE_ACCURACY_M) {
     throw new LocationError(
       "too-coarse",
-      `Your browser reported ±${accuracyM} m, which is coarser than one area cell.`,
+      `Your browser reported ±${accuracyM} m, which is coarser than one area cell (about 1.2 km). Desktops without Wi-Fi location fall back to IP geolocation; use a phone, enable location services, or in Chrome DevTools → Sensors set a position.`,
     );
   }
 

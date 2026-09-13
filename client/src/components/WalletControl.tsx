@@ -45,6 +45,43 @@ export default function WalletControl({ wallet }: Props) {
     );
   }
 
+  if (wallet.status === "choosing") {
+    return (
+      <div className="relative">
+        <div className="absolute right-0 top-0 z-50 w-64 rounded-xl border border-[#DCE5EB] bg-white p-2 shadow-[0_12px_32px_rgba(16,42,67,.14)]">
+          <div className="px-2 pb-2 pt-1 text-[11px] font-semibold text-[#426176]">
+            {wallet.choices.length} wallets installed — which one?
+          </div>
+          <ul className="max-h-72 overflow-auto">
+            {wallet.choices.map((w) => (
+              <li key={w.uuid}>
+                <button
+                  onClick={() => wallet.chooseWallet(w.uuid)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-[#102A43] hover:bg-[#F5F8FA]"
+                >
+                  {w.icon ? (
+                    <img src={w.icon} alt="" className="h-5 w-5 rounded" />
+                  ) : (
+                    <WalletCards className="h-5 w-5 text-[#8EA0AC]" />
+                  )}
+                  <span className="truncate">{w.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-1 flex items-center justify-between border-t border-[#EDF2F5] px-2 pt-2 text-[10px] text-[#8EA0AC]">
+            <span>Remembered for next time</span>
+            <button onClick={() => wallet.cancelChoice()} className="font-semibold text-[#426176]">Cancel</button>
+          </div>
+        </div>
+        <Button size="sm" disabled className="h-9 gap-2 rounded-lg bg-[#102A43] px-3 text-white opacity-90">
+          <WalletCards className="h-4 w-4" />
+          <span>Choose a wallet</span>
+        </Button>
+      </div>
+    );
+  }
+
   if (wallet.status !== "connected") {
     return (
       <div className="flex flex-col items-end gap-1">
