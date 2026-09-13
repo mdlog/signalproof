@@ -39,3 +39,10 @@ services:
         sync: false
       - key: CREDITCOIN_RELAYER_PRIVATE_KEY
         sync: false
+      # Enables the paid buyer API. Without it the gate is open and the purchase card is hidden.
+      - key: BUYER_ACCESS_SECRET
+        generateValue: true
+      - key: BUYER_ACCESS_PRICE_CTC
+        value: "0.05"
+      - key: BUYER_ACCESS_DAYS
+        value: "30"
