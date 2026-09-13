@@ -187,7 +187,7 @@ A React + Vite PWA. `Run a test` measures rather than asks: latency is the media
 incompressible payload from `/api/net/payload` with the first 250 ms excluded; the network class is
 `navigator.connection.effectiveType`, labelled as the browser's own estimate; the area is
 `navigator.geolocation` at low accuracy converted immediately to a precision-6 geohash. The raw
-coordinate never leaves the function. The wallet (EIP-6963 discovery via `ethers`) is an identity,
+coordinate never leaves the function. The wallet (RainbowKit + wagmi; CC3 Testnet declared as a chain) is an identity,
 not a signer — the relayer pays gas on both chains, and the only user transaction is `claim()`.
 
 A native mobile app was not built; the browser client is the measurement client.

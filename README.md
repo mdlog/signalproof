@@ -448,9 +448,17 @@ On Firefox and Safari `navigator.connection` does not exist at all. The UI rende
 
 ### Wallet
 
-`Connect wallet` uses EIP-6963 discovery via `ethers`' own `BrowserProvider.discover()`, falling
-back to `window.ethereum`. No wallet library was added — `ethers` was already a dependency and
-already implements this.
+`Connect wallet` opens [RainbowKit](https://rainbowkit.com) (wagmi + viem underneath): every
+installed extension is listed (MetaMask, Rabby, OKX, Phantom, …), a phone wallet can connect over
+WalletConnect when `VITE_WALLETCONNECT_PROJECT_ID` is set, and Creditcoin CC3 Testnet is declared
+as a chain so "Switch to CC3 Testnet" adds it to a wallet that has never seen it. The app's own
+wallet hook keeps a small surface — connect, switch, sign a measurement, `claim()`, self-settle,
+pay for access — so the pages never touch wagmi directly.
+
+One deliberate deviation from wagmi's defaults: on load the app reconnects **only the wallet used
+last time**, behind a timeout. wagmi's stock reconnect asks every installed wallet in turn whether
+it is authorised, and on a browser with several extensions one locked wallet that never answers
+would leave the header on "connecting" forever.
 
 **The wallet is an identity, not a signer.** The relayer pays gas on both chains, so submitting a
 measurement never asks the user to sign or send anything. The connected address is passed as

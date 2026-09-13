@@ -59,7 +59,7 @@ pnpm smoke       # live Attestcoin read-path check against CC3 Testnet, no key n
 
 The whole flow works in a desktop browser; a phone only adds the DePIN flavour.
 
-- **Wallet.** Any EIP-6963 wallet extension (MetaMask, Rabby, OKX …). With several installed, the header shows a picker the first time; the choice is remembered.
+- **Wallet.** Any browser wallet extension (MetaMask, Rabby, OKX, Phantom …) via RainbowKit's picker; the last-used wallet reconnects on the next visit. Phone wallets connect over WalletConnect when the host sets `VITE_WALLETCONNECT_PROJECT_ID`.
 - **Location.** Geolocation needs a *secure context*: `http://localhost` qualifies, `http://192.168.x.x` does not. A desktop without Wi-Fi location falls back to IP geolocation (±1,000 km), which the app refuses because it is coarser than one area cell. In Chrome, DevTools → *Sensors* → set a location; or use a phone over HTTPS.
 - **Rate limit.** Three measurements per wallet per cell per ten minutes. For repeated takes use a second wallet or another cell.
 
