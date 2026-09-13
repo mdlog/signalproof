@@ -262,9 +262,16 @@ export default function ClaimReward({ wallet }: { wallet: ReturnType<typeof useW
             ))
           )}
           {onCc3 && payable.length === 0 && (
-            <Button size="sm" disabled className="gap-2 rounded-lg bg-[#102A43] text-white">
+            // Disabled for a reason the user can read: the balance is still being read, the RPC did
+            // not answer, or there is genuinely nothing accrued. A bare greyed-out button says none of that.
+            <Button
+              size="sm"
+              disabled
+              title={rewards.isLoading ? "Reading the settlement contract…" : rewards.isError ? "Could not read the settlement contract." : "No reward accrued to this address yet."}
+              className="gap-2 rounded-lg bg-[#102A43] text-white"
+            >
               <Zap className="h-3.5 w-3.5" />
-              Claim {toCtc(accrued)} CTC
+              {rewards.isLoading ? "Reading rewards…" : rewards.isError ? "Rewards unavailable" : "Nothing to claim yet"}
             </Button>
           )}
         </div>
