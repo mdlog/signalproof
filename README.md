@@ -4,6 +4,8 @@
 
 Submission for [BUIDL CTC 2026 Fall](https://dorahacks.io/hackathon/buidl-ctc-2026-fall/detail) — **DePIN track**.
 
+**Live:** [https://signalproof.mdloglabs.org](https://signalproof.mdloglabs.org) — the dashboard, the public verifier (`/verify/<hash>`), the metered buyer API (`/v1/access`) and the ops panel (`/ops`), all reading Creditcoin CC3 Testnet and Ethereum Sepolia. Open it on a phone to contribute a measurement.
+
 **Documentation:** every running instance serves its own docs at `/docs` — quickstart, concepts, architecture, the Attestcoin integration, the API and contract references, the security model and an operations runbook. The sources are markdown in [`docs/site/`](docs/site/), readable on GitHub without running anything: start with the [introduction](docs/site/introduction.md).
 
 ---
@@ -291,9 +293,9 @@ worker still relays to Sepolia but leaves settlement to wallets.
 ### A buyer can query an area, with provenance
 
 ```bash
-curl -s https://<host>/v1/areas                    # every measured cell, most samples first
-curl -s https://<host>/v1/areas/qqguw6             # one cell: aggregates + every sample
-curl -s https://<host>/v1/areas/qqguw6/brief       # the same as a markdown brief
+curl -s https://signalproof.mdloglabs.org/v1/areas                    # every measured cell, most samples first
+curl -s https://signalproof.mdloglabs.org/v1/areas/qqguw6             # one cell: aggregates + every sample
+curl -s https://signalproof.mdloglabs.org/v1/areas/qqguw6/brief       # the same as a markdown brief
 ```
 
 Each sample carries `sourceTxHash`, `creditcoinTxHash` and a `verifyUrl`, so a buyer can verify
@@ -349,7 +351,7 @@ verify link, and offers CSV (`/v1/areas/<geohash>/export.csv`), JSON (`/export.j
 brief — all behind the key — plus a free, embeddable badge:
 
 ```html
-<a href="https://<host>/area/qqguw6"><img src="https://<host>/v1/areas/qqguw6/badge.svg"></a>
+<a href="https://signalproof.mdloglabs.org/area/qqguw6"><img src="https://signalproof.mdloglabs.org/v1/areas/qqguw6/badge.svg"></a>
 ```
 
 The badge reads `SignalProof · qqguw6 | quality 86 · 9 samples · verified on Creditcoin`, coloured

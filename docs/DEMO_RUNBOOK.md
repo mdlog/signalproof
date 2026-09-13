@@ -119,6 +119,8 @@ your own desk loses connectivity, the backup is what ships.
 
 ## Judge-clone path (what a judge can do without any key)
 
+The fastest path is the live host: https://signalproof.mdloglabs.org (HTTPS, worker in full mode, `BUYER_ACCESS_SECRET` set — the purchase card renders). `E2E_BASE=https://signalproof.mdloglabs.org pnpm e2e:surface` runs the 28 live checks against it.
+
 ```bash
 git clone --recursive https://github.com/mdlog/signalproof   # forge-std is a submodule; or `forge install` in contracts/
 pnpm install

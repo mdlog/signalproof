@@ -42,6 +42,8 @@ DePIN
 ```
 A phone measured its network. Eight and a half minutes later a contract on Creditcoin paid for that measurement — without trusting the phone, the server, or the relayer that carried it. It trusted a proof.
 
+Live at https://signalproof.mdloglabs.org — dashboard, public verifier, metered buyer API and ops panel, reading Creditcoin CC3 Testnet and Ethereum Sepolia; open it on a phone to contribute a measurement.
+
 SignalProof is verifiable connectivity data for DePIN. Anyone can claim coverage numbers; nobody can prove them. Operators buy drive tests and crowdsourced quality reports whose provenance is a spreadsheet. SignalProof makes the claim checkable: a measurement is committed as a hash on Ethereum Sepolia, proven to exist there by the Attestcoin Protocol, and settled on Creditcoin CC3 Testnet, where a contract verifies the cross-chain proof and accrues a reward to the contributor.
 
 What is built and live on testnet:
