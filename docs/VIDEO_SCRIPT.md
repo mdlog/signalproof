@@ -75,8 +75,9 @@ two proof workers race on nonces.
 
 ## 3. The script — screen, action and words, in sync
 
-One cue per sentence. SCREEN is what must be visible while the sentence is spoken,
-DO (in Indonesian) is what your hand does, SAY is the exact narration. Move to the next cue on the
+One cue per sentence. SCREEN (bahasa Indonesia) = apa yang harus terlihat di layar saat
+kalimat itu diucapkan; DO (bahasa Indonesia) = yang dilakukan tangan Anda; SAY = narasi persis,
+dalam bahasa Inggris untuk juri. Move to the next cue on the
 last word of the previous sentence. Speak at ~155 words per minute; the main path
 is about 620 words ≈ 4:00 including the pauses.
 
@@ -84,31 +85,32 @@ is about 620 words ≈ 4:00 including the pauses.
 
 ```text
 [0:00]
-  SCREEN Verifier result card. Header "Settled on Creditcoin", green pill SETTLED,
-         line "Area qqguw6 · contributor 0x5360…8c93".
+  SCREEN Kartu hasil verifier. Judul "Settled on Creditcoin", pil hijau SETTLED, baris
+         "Area qqguw6 · contributor 0x5360…8c93".
   DO     Diam 2 detik — biarkan layar apa adanya.
   SAY    (pause)
 
 [0:02]
-  SCREEN Same card. Cursor on step 1 "Measurement root" (green check) and its hash.
+  SCREEN Kartu yang sama. Kursor di langkah 1 "Measurement root" (centang hijau)
+         beserta hash-nya.
   DO     Diamkan kursor di hash root.
   SAY    "This measurement was taken on a phone in Jakarta,"
 
 [0:05]
-  SCREEN The rail: "Committed on Ethereum Sepolia" → "Attested by Creditcoin" →
-         "Settled on Creditcoin CC3", each with a green check.
+  SCREEN Rel langkah: "Committed on Ethereum Sepolia" → "Attested by Creditcoin" →
+         "Settled on Creditcoin CC3", masing-masing bercentang hijau.
   DO     Telusuri empat langkah itu dari atas ke bawah dengan kursor.
   SAY    "committed on Ethereum Sepolia, proven by the Attestcoin Protocol, and
          settled on Creditcoin —"
 
 [0:09]
-  SCREEN Panel "Attestcoin proof — what the precompile verified": rows Attested
+  SCREEN Panel "Attestcoin proof — what the precompile verified": baris Attested
          height, Transaction, Merkle inclusion, Continuity, execute().
   DO     Scroll sampai seluruh panel terlihat.
   SAY    "where a smart contract, not a server, decided it was real."
 
 [0:12]
-  SCREEN An "explorer ↗" link next to a hash.
+  SCREEN Tautan "explorer ↗" di samping sebuah hash.
   DO     Arahkan kursor ke tautannya, jangan diklik.
   SAY    "Every step is a transaction you can open. This is SignalProof."
 ```
@@ -117,28 +119,28 @@ is about 620 words ≈ 4:00 including the pauses.
 
 ```text
 [0:14]
-  SCREEN Console after clicking sidebar "Coverage overview": hero "Know where the
-         signal breaks before users do." and the four KPI cards (Verified coverage
-         100 %, Measurements, Median latency, Rewards settled).
+  SCREEN Konsol setelah klik sidebar "Coverage overview": hero "Know where the signal
+         breaks before users do." dan empat kartu KPI (Verified coverage 100 %,
+         Measurements, Median latency, Rewards settled).
   DO     Klik item sidebar itu. Jauhkan kursor dari kartu-kartu KPI.
   SAY    "Anyone can claim coverage numbers. Nobody can prove them."
 
 [0:19]
-  SCREEN Card "Coverage signal map": logo pins on the map with shaded cells around
-         them.
+  SCREEN Kartu "Coverage signal map": pin berlogo di peta dengan kotak cell berbayang
+         di sekelilingnya.
   DO     Scroll turun satu layar.
   SAY    "SignalProof turns each phone measurement into a claim a contract can check,
          and aggregates it per area."
 
 [0:25]
-  SCREEN The shaded rectangle around the qqguw6 pin, clearly visible.
+  SCREEN Kotak berbayang di sekeliling pin qqguw6 terlihat jelas.
   DO     Klik "+" di peta satu kali, lalu diamkan kursor di tepi kotak cell.
   SAY    "Each box is a geohash cell about one kilometre wide — a contributor is
          somewhere inside it, never at a point."
 
 [0:32]
-  SCREEN Tooltip "qqguw6 · quality 94" over the pin; legend "shaded box = geohash
-         cell" bottom-left.
+  SCREEN Tooltip "qqguw6 · quality 94" di atas pin; legenda "shaded box = geohash
+         cell" di kiri bawah.
   DO     Arahkan kursor ke pin.
   SAY    "The raw coordinate never leaves the phone."
 ```
@@ -147,34 +149,34 @@ is about 620 words ≈ 4:00 including the pauses.
 
 ```text
 [0:36]
-  SCREEN GitHub tab. The Mermaid flowchart fully visible: boxes "Contributor device",
+  SCREEN Tab GitHub. Diagram alir Mermaid terlihat utuh: kotak "Contributor device",
          "SignalProof server", "Ethereum Sepolia", "Attestcoin Protocol", "Creditcoin
          CC3 Testnet", "Consumers".
   DO     Pindah tab. Kursor ke "Measure", lalu ke "Wallet" di dalam kotak device.
   SAY    "The pipeline. The phone measures and signs;"
 
 [0:40]
-  SCREEN Cursor on "Gateway (tRPC)", following the arrow to "Relayer" and on to
+  SCREEN Kursor di "Gateway (tRPC)", mengikuti panah ke "Relayer" lalu ke
          "SourceBatchRegistry".
   DO     Telusuri panahnya perlahan.
   SAY    "the gateway checks the signature and relays to a registry on Sepolia, which
          recovers the signature again on-chain."
 
 [0:47]
-  SCREEN Cursor on "Attestation", then "Proof service" inside the Attestcoin box.
+  SCREEN Kursor di "Attestation", lalu "Proof service" di dalam kotak Attestcoin.
   DO     Telusuri panah putus-putus "block attested".
   SAY    "Attestcoin attests Sepolia blocks on Creditcoin; once our block is attested,
          the proof service returns a Merkle inclusion proof and a continuity proof."
 
 [0:55]
-  SCREEN Cursor on "Proof worker" → arrow "execute(proof)" → "BlockProver precompile"
+  SCREEN Kursor di "Proof worker" → panah "execute(proof)" → "BlockProver precompile"
          → "SignalProofSettlement" → "Reward pool".
   DO     Telusuri panah masuk ke kotak CC3.
   SAY    "Our settlement contract hands that proof to the BlockProver precompile — and
          only if it verifies does the contributor earn a reward."
 
 [1:03]
-  SCREEN The arrow "Buyer → 0.05 CTC → Reward pool" at the bottom right.
+  SCREEN Panah "Buyer → 0.05 CTC → Reward pool" di kanan bawah.
   DO     Diamkan kursor di panah itu.
   SAY    "Buyers pay into that same pool. Two chains, no oracle operator in the
          middle."
@@ -184,26 +186,26 @@ is about 620 words ≈ 4:00 including the pauses.
 
 ```text
 [1:08]
-  SCREEN App tab. Header button "Connect wallet" → RainbowKit dialog "Connect a
-         Wallet" with the "Installed" list (MetaMask in it).
+  SCREEN Tab aplikasi. Tombol header "Connect wallet" → dialog RainbowKit "Connect a
+         Wallet" dengan daftar "Installed" (MetaMask ada di dalamnya).
   DO     Klik "Connect wallet", lalu pilih "MetaMask".
   SAY    "A real one. I connect a wallet —"
 
 [1:12]
-  SCREEN MetaMask popup "Connect with MetaMask". After approval the header shows the
-         green "CC3" chip and your short address.
+  SCREEN Popup MetaMask "Connect with MetaMask". Setelah disetujui, header menampilkan
+         chip hijau "CC3" dan alamat singkat Anda.
   DO     Setujui di MetaMask.
   SAY    "it needs no balance; the relayer pays gas on both chains."
 
 [1:16]
-  SCREEN Sidebar "Run a test". Card "Capture a signal snapshot.", the dial with the
-         logo, button "Run valid test".
+  SCREEN Sidebar "Run a test". Kartu "Capture a signal snapshot.", dial berlogo,
+         tombol "Run valid test".
   DO     Klik "Run a test", lalu "Run valid test".
   SAY    "Run valid test:"
 
 [1:19]
-  SCREEN Dial ring spinning in colour, status "Sampling network…". Tiles fill in
-         order: Coarse area (qqguw6, "±NN m → cell 1216×607 m · coordinate
+  SCREEN Cincin dial berputar berwarna, status "Sampling network…". Tile terisi
+         berurutan: Coarse area (qqguw6, "±NN m → cell 1216×607 m · coordinate
          discarded"), Network class, Latency ("median of 7 round trips"), Throughput
          ("3.00 MB over 0.6 s").
   DO     Arahkan kursor ke tiap tile begitu terisi.
@@ -212,20 +214,21 @@ is about 620 words ≈ 4:00 including the pauses.
          position into a six-character geohash before anything leaves the device."
 
 [1:31]
-  SCREEN MetaMask popup "Signature request" showing the text "SignalProof measurement
+  SCREEN Popup MetaMask "Signature request" menampilkan teks "SignalProof measurement
          …".
   DO     Setujui tanda tangan di MetaMask.
   SAY    "My wallet signs the measurement — free, no gas."
 
 [1:35]
-  SCREEN Label "Evidence pipeline" changes to "sent to gateway"; step 02 "Source-chain
-         event" turns green; then the label reads "N blocks to attestation · ~M min".
+  SCREEN Label "Evidence pipeline" berubah menjadi "sent to gateway"; langkah 02
+         "Source-chain event" menjadi hijau; lalu label berbunyi "N blocks to
+         attestation · ~M min".
   DO     Diamkan kursor di label hitung mundur.
   SAY    "The gateway recomputes the hash, recovers the signer, and relays it to
          Sepolia."
 
 [1:41]
-  SCREEN The countdown box: "attested height", "your block", and the note "Creditcoin
+  SCREEN Kotak hitung mundur: "attested height", "your block", dan catatan "Creditcoin
          attests Sepolia in batches of ~10 blocks, about every 2 minutes."
   DO     Arahkan kursor ke kotak hitung mundur.
   SAY    "Now the honest part: Creditcoin attests Sepolia about ten blocks every two
@@ -236,37 +239,37 @@ is about 620 words ≈ 4:00 including the pauses.
 
 ```text
 [1:50]
-  SCREEN Sidebar "Proof queue". Filter "All (N) · Settled · Awaiting". Top card is
-         Settled: green check, "Proof verified on Creditcoin. Reward 0.001 CTC
+  SCREEN Sidebar "Proof queue". Filter "All (N) · Settled · Awaiting". Kartu teratas
+         Settled: centang hijau, "Proof verified on Creditcoin. Reward 0.001 CTC
          released."
   DO     Klik "Proof queue", lalu "View proof" pada kartu Settled paling atas.
   SAY    "This is what the precompile is given, fetched live with no key:"
 
 [1:54]
-  SCREEN Proof panel, row "Attested height 11,681,452 (Sepolia block, tx index 96)".
+  SCREEN Panel proof, baris "Attested height 11,681,452 (Sepolia block, tx index 96)".
   DO     Kursor di baris ini.
   SAY    "the attested Sepolia height,"
 
 [1:57]
-  SCREEN Row "Merkle inclusion": root 0x145d… · 7 siblings: R 0x8b77…, L 0xbf56…
+  SCREEN Baris "Merkle inclusion": root 0x145d… · 7 siblings: R 0x8b77…, L 0xbf56…
   DO     Kursor di baris ini.
   SAY    "seven Merkle siblings up to the block's transaction root,"
 
 [2:01]
-  SCREEN Row "Continuity": 49 roots from lower endpoint 0x3e60…
+  SCREEN Baris "Continuity": 49 roots from lower endpoint 0x3e60…
   DO     Kursor di baris ini.
   SAY    "and the continuity roots that chain the block back to an attestation
          checkpoint —"
 
 [2:05]
-  SCREEN Row "execute()": selector 0xc6339bf7 · action 0 · calldata 4,484 bytes · gas
-         ceiling 858,000.
+  SCREEN Baris "execute()": selector 0xc6339bf7 · action 0 · calldata 4,484 bytes ·
+         gas ceiling 858,000.
   DO     Kursor di baris ini.
   SAY    "packed into one execute call."
 
 [2:08]
-  SCREEN Footnote under the panel: "Anyone holding this proof may call execute(); the
-         settlement contract then checks…"
+  SCREEN Catatan kaki di bawah panel: "Anyone holding this proof may call execute();
+         the settlement contract then checks…"
   DO     Diamkan kursor di catatan kaki.
   SAY    "Anyone holding this proof may call it. That is by design."
 ```
@@ -275,45 +278,44 @@ is about 620 words ≈ 4:00 including the pauses.
 
 ```text
 [2:12]
-  SCREEN Blockscout, the settlement transaction, tab "Logs": MeasurementVerified
-         decoded with measurementRoot, areaHash, contributor, rewardAmount.
+  SCREEN Blockscout, transaksi settlement, tab "Logs": MeasurementVerified ter-decode
+         dengan measurementRoot, areaHash, contributor, rewardAmount.
   DO     Klik "Open on explorer" pada kartu Settled, lalu buka tab "Logs".
   SAY    "The settlement on Creditcoin: MeasurementVerified, with the root, the area,
          the contributor and the reward."
 
 [2:20]
-  SCREEN Same log. Cursor on the emitting contract address 0x8F14…b584.
+  SCREEN Log yang sama. Kursor di alamat kontrak penerbit 0x8F14…b584.
   DO     Arahkan kursor ke alamat kontrak.
   SAY    "The precompile proves inclusion in an attested block — and only that."
 
 [2:24]
-  SCREEN GitHub tab: contracts/src/SignalProofSettlement.sol scrolled to the two
-         revert lines (SourceTransactionFailed, WrongEmitter).
+  SCREEN Tab GitHub: contracts/src/SignalProofSettlement.sol di-scroll ke dua baris
+         revert (SourceTransactionFailed, WrongEmitter).
   DO     Pindah ke tab GitHub.
   SAY    "It does not prove the transaction succeeded, or which contract emitted the
          log."
 
 [2:29]
-  SCREEN Line: if (receipt.receiptStatus != 1) revert SourceTransactionFailed(…)
+  SCREEN Baris: if (receipt.receiptStatus != 1) revert SourceTransactionFailed(…)
   DO     Blok (select) baris ini agar tersorot.
   SAY    "So we check both: receipt status must be one,"
 
 [2:32]
-  SCREEN Line: if (log.address_ != sourceRegistry) revert WrongEmitter(…)
+  SCREEN Baris: if (log.address_ != sourceRegistry) revert WrongEmitter(…)
   DO     Blok baris ini.
   SAY    "and the log must come from our registry."
 
 [2:35]
-  SCREEN The comment block above the hook that names the missing check in the docs
-         example.
+  SCREEN Blok komentar di atas hook yang menyebut cek yang hilang dari contoh di docs.
   DO     Scroll naik dua layar.
   SAY    "That second check is missing from the SimpleMinterASC example in the
          Attestcoin docs; without it, anyone can prove a forged event from a lookalike
          registry and drain the pool."
 
 [2:44]
-  SCREEN contracts/test/EndToEnd.t.sol with the function name
-         test_forgedRegistryCannotSettleEvenWithValidProof visible.
+  SCREEN contracts/test/EndToEnd.t.sol dengan nama fungsi
+         test_forgedRegistryCannotSettleEvenWithValidProof terlihat.
   DO     Pindah ke tab ketiga yang sudah dibuka sebelumnya.
   SAY    "Our end-to-end test runs that attack, and only the emitter binding stops
          it."
@@ -323,15 +325,15 @@ is about 620 words ≈ 4:00 including the pauses.
 
 ```text
 [2:50]
-  SCREEN App tab, "Proof queue". The pre-warmed card at the top flips: pill "Awaiting
-         attestation" → "Settled"; detail "Proof verified on Creditcoin. Reward 0.001
-         CTC released."; the sidebar badge count drops.
+  SCREEN Tab aplikasi, "Proof queue". Kartu pre-warm di paling atas berubah: pil
+         "Awaiting attestation" → "Settled"; detail "Proof verified on Creditcoin.
+         Reward 0.001 CTC released."; angka badge di sidebar berkurang.
   DO     Klik "Proof queue". Kalau perlu, tunggu poll 15 detik berikutnya.
   SAY    "And the measurement I submitted before recording has just settled: proof
          verified, reward accrued."
 
 [2:57]
-  SCREEN Sidebar footer "Live · N settled on CC3" and header badge "CC3 TESTNET ·
+  SCREEN Footer sidebar "Live · N settled on CC3" dan badge header "CC3 TESTNET ·
          LIVE".
   DO     Diamkan kursor di footer sidebar.
   SAY    "Nothing here comes from a database — the dashboard is a join of the two
@@ -348,50 +350,50 @@ one that settled just before we started." Lalu klik "View proof" pada kartu Sett
 
 ```text
 [3:03]
-  SCREEN MetaMask switched to account B (buyer). Sidebar "Data products". Card "API
-         ACCESS — 0.05 CTC for 30 days, paid into the reward pool." with the three
-         numbered steps.
+  SCREEN MetaMask sudah di akun B (pembeli). Sidebar "Data products". Kartu "API
+         ACCESS — 0.05 CTC for 30 days, paid into the reward pool." dengan tiga
+         langkah bernomor.
   DO     Ganti akun di MetaMask ke akun B, lalu klik "Data products".
   SAY    "The other side of the market. A buyer pays 0.05 CTC for thirty days of
          access —"
 
 [3:09]
-  SCREEN Button reads "Confirm the payment in your wallet…"; MetaMask popup "Send 0.05
-         CTC to 0x8F14…b584".
+  SCREEN Tombol berbunyi "Confirm the payment in your wallet…"; popup MetaMask "Send
+         0.05 CTC to 0x8F14…b584".
   DO     Klik "Buy API access — 0.05 CTC", lalu konfirmasi di MetaMask.
   SAY    "a plain transfer into the settlement contract, the same pool contributors
          claim from."
 
 [3:15]
-  SCREEN Button reads "Waiting for the block…", then MetaMask "Signature request":
+  SCREEN Tombol berbunyi "Waiting for the block…", lalu MetaMask "Signature request":
          "SignalProof API access / Transaction: 0x… / Address: 0x…".
   DO     Tanda tangani di MetaMask.
   SAY    "The buyer signs the transaction hash,"
 
 [3:19]
-  SCREEN Green card "Key active until <date>", the sp1_… key, links "Copy key · Copy
+  SCREEN Kartu hijau "Key active until <tanggal>", key sp1_…, tautan "Copy key · Copy
          curl · Payment on Blockscout".
   DO     Diamkan kursor di key-nya.
   SAY    "the server verifies the payment on chain and returns a key derived from it;
          nothing is stored."
 
 [3:24]
-  SCREEN Area card qqguw6 → dialog "Area brief — qqguw6" with the markdown and its
-         provenance table.
+  SCREEN Kartu area qqguw6 → dialog "Area brief — qqguw6" berisi markdown dan tabel
+         provenance-nya.
   DO     Klik "Area brief", scroll dialognya sekali, lalu tutup.
   SAY    "What is metered is the service — per-area samples with provenance, briefs,
          exports — not the data, which is public on two chains."
 
 [3:31]
-  SCREEN Page /area/qqguw6: title "qqguw6 · quality NN", KPI strip, card "The cell"
-         (map), card "Quality over time" (chart), table "Every sample" with Verify
-         links.
+  SCREEN Halaman /area/qqguw6: judul "qqguw6 · quality NN", strip KPI, kartu "The
+         cell" (peta), kartu "Quality over time" (grafik), tabel "Every sample" dengan
+         tautan Verify.
   DO     Klik judul kartu area (qqguw6).
   SAY    "Here is an area: the cell, quality over time, every sample with its two
          transactions,"
 
 [3:36]
-  SCREEN Browser download bar: signalproof-qqguw6.csv
+  SCREEN Bar unduhan browser: signalproof-qqguw6.csv
   DO     Klik "CSV".
   SAY    "and a CSV."
 ```
@@ -400,20 +402,20 @@ one that settled just before we started." Lalu klik "View proof" pada kartu Sett
 
 ```text
 [3:38]
-  SCREEN Page /ops, card "Reward pool": Pool balance, Reward per measurement 0.001
-         CTC, "Runway N settlements" — 50 higher than before shot 8.
+  SCREEN Halaman /ops, kartu "Reward pool": Pool balance, Reward per measurement 0.001
+         CTC, "Runway N settlements" — 50 lebih tinggi daripada sebelum shot 8.
   DO     Klik "Operations", kursor ke "Runway".
   SAY    "Operations shows the pool's runway in settlements — it just went up by fifty
          —"
 
 [3:44]
-  SCREEN Card "Relayer gas": Sepolia ETH and Creditcoin CTC balances.
+  SCREEN Kartu "Relayer gas": saldo Sepolia ETH dan Creditcoin CTC.
   DO     Kursor ke angka saldo.
   SAY    "and relayer gas on both chains."
 
 [3:47]
-  SCREEN Page /contributors: headline "9 contributors, N settled measurements across 4
-         cells." and the Leaderboard table (rank, address, settled, cells, accrued).
+  SCREEN Halaman /contributors: judul "9 contributors, N settled measurements across 4
+         cells." dan tabel Leaderboard (rank, address, settled, cells, accrued).
   DO     Klik "Contributors".
   SAY    "Contributors shows the network: nine addresses across four cells, each with
          claimable rewards."
@@ -423,14 +425,13 @@ one that settled just before we started." Lalu klik "View proof" pada kartu Sett
 
 ```text
 [3:52]
-  SCREEN End card: the logo, "signalproof.mdloglabs.org",
-         "github.com/mdlog/signalproof", "BUIDL CTC 2026 Fall · DePIN track" (deck
-         slide 12 works).
+  SCREEN End card: logo, "signalproof.mdloglabs.org", "github.com/mdlog/signalproof",
+         "BUIDL CTC 2026 Fall · DePIN track" (slide 12 deck bisa dipakai).
   DO     Potong ke gambar end card.
   SAY    "SignalProof — verifiable connectivity data, settled on Creditcoin."
 
 [3:56]
-  SCREEN Same card.
+  SCREEN Kartu yang sama.
   DO     Tahan 4 detik.
   SAY    "Everything you saw is live on testnet; the repository, the deck and the
          verifier are linked below."
