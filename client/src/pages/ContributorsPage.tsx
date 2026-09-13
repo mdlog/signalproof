@@ -69,7 +69,7 @@ export default function ContributorsPage() {
                     <td className="py-3">{mine ? (
                       <span className="flex flex-wrap items-center gap-2">
                         <Link href={`/contributors/${r.address}`} className="rounded-full bg-[#147A70] px-2.5 py-0.5 text-xs font-semibold text-white">You</Link>
-                        <span className="font-mono text-[10px] text-[#8EA0AC]">{r.address.slice(0, 6)}…{r.address.slice(-4)}</span>
+                        <Link href={`/contributors/${r.address}`} className="font-mono text-xs text-[#147A70]">{r.address}</Link>
                       </span>
                     ) : (
                       <Link href={`/contributors/${r.address}`} className="font-mono text-xs text-[#147A70]">{r.address}</Link>
