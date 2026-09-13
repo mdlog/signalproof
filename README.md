@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="https://signalproof.mdloglabs.org"><img alt="Live" src="https://img.shields.io/badge/live-signalproof.mdloglabs.org-147A70" /></a>
+  <a href="https://youtu.be/a8pT_0w3Qa8"><img alt="Demo video" src="https://img.shields.io/badge/demo%20video-4%3A07-F06A59?logo=youtube&logoColor=white" /></a>
   <img alt="Track" src="https://img.shields.io/badge/BUIDL%20CTC%202026%20Fall-DePIN%20track-102A43" />
   <img alt="Tests" src="https://img.shields.io/badge/tests-75%20Foundry%20%C2%B7%20185%20Vitest-31B7A6" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue" />
@@ -13,6 +14,7 @@
 
 <p align="center">
   <a href="https://signalproof.mdloglabs.org">Live app</a> ·
+  <a href="https://youtu.be/a8pT_0w3Qa8">Demo video</a> ·
   <a href="https://signalproof.mdloglabs.org/docs">Documentation</a> ·
   <a href="docs/deck/SignalProof-deck.pdf">Deck (PDF)</a> ·
   <a href="docs/TECHNICAL_ARCHITECTURE.md">Technical architecture</a> ·

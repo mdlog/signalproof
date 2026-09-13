@@ -143,8 +143,7 @@ https://raw.githubusercontent.com/mdlog/signalproof/main/docs/deck/SignalProof-d
 
 Live (HTTP 200, 12 pages, ~0.6 MB). Source is `docs/deck/SignalProof-deck.html`, rendered with
 headless Chrome: `google-chrome --headless=new --no-pdf-header-footer --print-to-pdf=SignalProof-deck.pdf SignalProof-deck.html`.
-Once the demo video URL exists, replace "linked from the BUIDL page on DoraHacks" on the last slide
-with it and re-render. The 12 slides, in order:
+Slide 12 carries the demo video URL (re-rendered 2026-09-13 after the upload). The 12 slides, in order:
 
 1. **Title** — one-liner, the pipeline as five stations, event and track.
 2. **Anyone can claim coverage numbers. Nobody can prove them.** — who claims, why it is unverifiable, what SignalProof changes.
@@ -162,13 +161,16 @@ with it and re-render. The 12 slides, in order:
 ## Field 8 — Prototype Demo Video URL (required)
 
 ```
-<DEMO_VIDEO_URL>
+https://youtu.be/a8pT_0w3Qa8
 ```
 
-YouTube (unlisted is fine) or Google Drive with link access. Script: `docs/VIDEO_SCRIPT.md`
-(~3:00; no organizer length limit is published — `DATA TIDAK DITEMUKAN` in the brief — so the
-self-imposed cap is 3:30 because judges are screening 87 entries). Open the URL in a private window
-before pasting.
+YouTube, 4:07, 1080p, English narration with burned-in captions and chapters (0:00 settled
+measurement · 0:18 problem · 0:39 pipeline · 1:13 a real measurement signed in MetaMask · 1:52 the
+proof · 2:12 receipt-status and emitter-binding checks · 2:50 settled · 3:02 buyer side · 3:40
+operations and contributors · 3:55 links). Script: `docs/VIDEO_SCRIPT.md`. No organizer length
+limit is published (`DATA TIDAK DITEMUKAN` in the brief). Every number on screen was read from the
+live host at record time; the measurement in shot 4 (`0x98cC…b5E7`, cell `qxhftw`) is the one
+that settles in shot 7. Opened in a private window before pasting: plays.
 
 ---
 
@@ -207,7 +209,7 @@ Minimum team size is 1; delete unused columns.
 | Attestcoin Protocol as a core feature | ✓ done | Settlement cannot happen without the proof; there is no non-Attestcoin path to a reward |
 | GitHub Repository URL (must include a README) — form field 6 | ✓ done — https://github.com/mdlog/signalproof | Field 6 above |
 | Project Deck or Whitepaper (PDF URL) — form field 7 | ✓ done — raw GitHub PDF, 12 slides (re-rendered 2026-09-13) | Field 7 above |
-| Prototype Demo Video URL — form field 8 | ☐ **pending** — record from `docs/VIDEO_SCRIPT.md` | Field 8 above |
+| Prototype Demo Video URL — form field 8 | ✓ done — https://youtu.be/a8pT_0w3Qa8 (4:07, uploaded 2026-09-13) | Field 8 above |
 | USC / Attestcoin Integration Summary — form field 5 | ✓ written | Field 5 above |
 | Project Name, Sector, Description — form fields 1, 3, 4 | ✓ written | Fields 1, 3, 4 above |
 | Project Logo (optional) — form field 2 | ✓ done — raw GitHub PNG, HTTP 200 | Field 2 above |

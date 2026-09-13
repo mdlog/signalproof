@@ -1,5 +1,7 @@
 # SignalProof — demo video script
 
+> Published 2026-09-13: https://youtu.be/a8pT_0w3Qa8 (4:07). Shots 1–3 and 5–10 were produced from this script by an automated pipeline against the live host; shot 4 was recorded by hand.
+
 Target length 4:00 (DoraHacks sets no limit). Narration in English — the judges are
 the Creditcoin/Gluwa and CertiK teams. Record the browser at 1920×1080, one window,
 zoom 110 % so labels read on a phone.
