@@ -8,6 +8,7 @@ import { Users } from "lucide-react";
 import PageFrame from "@/components/PageFrame";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
+import { useWalletContext } from "@/contexts/WalletContext";
 
 function formatCtc(wei: string): string {
   const v = Number(BigInt(wei)) / 1e18;
@@ -25,6 +26,10 @@ function relative(epoch: number | null): string {
 export default function ContributorsPage() {
   const query = trpc.signalproof.contributors.useQuery(undefined, { refetchInterval: 30_000 });
   const rows = query.data ?? [];
+  // The connected wallet's own row reads "You": the leaderboard is the one place a contributor
+  // looks for themselves, and a 42-character address is not how anyone recognises their own.
+  const wallet = useWalletContext();
+  const me = wallet.status === "connected" && wallet.address ? wallet.address.toLowerCase() : null;
   const totalSettled = rows.reduce((n, r) => n + r.settled, 0);
   const cells = new Set(rows.flatMap((r) => r.areas)).size;
 
@@ -45,17 +50,27 @@ export default function ContributorsPage() {
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead><tr className="border-b border-[#EDF2F5] text-[10px] uppercase tracking-[0.13em] text-[#A0AFBB]"><th className="py-3 font-medium">#</th><th className="py-3 font-medium">Address</th><th className="py-3 font-medium">Settled</th><th className="py-3 font-medium">Awaiting</th><th className="py-3 font-medium">Cells</th><th className="py-3 font-medium">Accrued</th><th className="py-3 text-right font-medium">Last seen</th></tr></thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.address} className="border-b border-[#F0F3F5] last:border-0">
+                {rows.map((r) => {
+                  const mine = me !== null && r.address.toLowerCase() === me;
+                  return (
+                  <tr key={r.address} className={`border-b border-[#F0F3F5] last:border-0 ${mine ? "bg-[#F0FAF8]" : ""}`}>
                     <td className="py-3 font-display text-lg font-bold text-[#102A43]">{r.rank}</td>
-                    <td className="py-3"><Link href={`/contributors/${r.address}`} className="font-mono text-xs text-[#147A70]">{r.address}</Link></td>
+                    <td className="py-3">{mine ? (
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Link href={`/contributors/${r.address}`} className="rounded-full bg-[#147A70] px-2.5 py-0.5 text-xs font-semibold text-white">You</Link>
+                        <span className="font-mono text-[10px] text-[#8EA0AC]">{r.address.slice(0, 6)}…{r.address.slice(-4)}</span>
+                      </span>
+                    ) : (
+                      <Link href={`/contributors/${r.address}`} className="font-mono text-xs text-[#147A70]">{r.address}</Link>
+                    )}</td>
                     <td className="py-3 font-semibold">{r.settled}</td>
                     <td className="py-3 text-[#9A6517]">{r.awaiting || "—"}</td>
                     <td className="py-3"><div className="flex flex-wrap gap-1">{r.areas.map((a) => <Link key={a} href={`/area/${a}`} className="rounded-md bg-[#F5F8FA] px-2 py-0.5 font-mono text-[10px] text-[#426176] hover:bg-[#DDF7F1] hover:text-[#147A70]">{a}</Link>)}</div></td>
                     <td className="py-3 text-xs">{formatCtc(r.rewardAccruedWei)} CTC</td>
                     <td className="py-3 text-right text-xs text-[#8EA0AC]">{relative(r.lastSeen)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
