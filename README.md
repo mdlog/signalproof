@@ -455,8 +455,12 @@ as a chain so "Switch to CC3 Testnet" adds it to a wallet that has never seen it
 wallet hook keeps a small surface — connect, switch, sign a measurement, `claim()`, self-settle,
 pay for access — so the pages never touch wagmi directly.
 
-One deliberate deviation from wagmi's defaults: on load the app reconnects **only the wallet used
-last time**, behind a timeout. wagmi's stock reconnect asks every installed wallet in turn whether
+Two deliberate deviations from the library defaults. RainbowKit's own `metaMaskWallet` entry is
+not used: it routes MetaMask through the MetaMask SDK, which **reloads the page** when it hands
+over to the browser extension after the first approval — the user confirms in MetaMask and comes
+back to an app that has forgotten them. Installed extensions, MetaMask included, are listed
+through EIP-6963 as plain injected connectors instead, so the session survives the round trip.
+And on load the app reconnects **only the wallet used last time**, behind a timeout. wagmi's stock reconnect asks every installed wallet in turn whether
 it is authorised, and on a browser with several extensions one locked wallet that never answers
 would leave the header on "connecting" forever.
 

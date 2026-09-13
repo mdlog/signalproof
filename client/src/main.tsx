@@ -77,6 +77,11 @@ const trpcClient = trpc.createClient({
 });
 
 void reconnectRecentWallet();
+// A phone browser may reload the tab while the user is in their wallet app; when the tab comes
+// back and nothing is connected, resume the last wallet silently rather than asking again.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && wagmiConfig.state.status === "disconnected") void reconnectRecentWallet();
+});
 
 createRoot(document.getElementById("root")!).render(
   <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>

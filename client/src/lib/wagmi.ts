@@ -9,10 +9,12 @@
  * A WalletConnect project id enables the QR/mobile-wallet route; without one, injected wallets
  * (MetaMask and friends) still connect, which is what the console needs.
  */
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { connectorsForWallets } from "@rainbow-me/rainbowkit";
+import { coinbaseWallet, injectedWallet, rainbowWallet, walletConnectWallet } from "@rainbow-me/rainbowkit/wallets";
 import { reconnect } from "@wagmi/core";
 import { http, type Chain } from "viem";
 import { sepolia } from "viem/chains";
+import { createConfig } from "wagmi";
 
 export const CC3_TESTNET_CHAIN_ID = 102031;
 
@@ -28,12 +30,27 @@ export const cc3Testnet: Chain = {
 
 const projectId = (import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined)?.trim() || "signalproof-no-walletconnect";
 
-export const wagmiConfig = getDefaultConfig({
-  appName: "SignalProof",
-  appDescription: "Verifiable connectivity data, settled on Creditcoin via the Attestcoin Protocol.",
-  appIcon: "https://signalproof.mdloglabs.org/icon-512.png",
-  projectId,
+/**
+ * Wallet list, on purpose without RainbowKit's `metaMaskWallet`.
+ *
+ * That entry routes MetaMask through the MetaMask SDK connector, and the SDK reloads the page when
+ * it hands over to the browser extension after the first approval — the user confirms in MetaMask,
+ * comes back to a reloaded app, and has to connect again. Installed extensions, MetaMask included,
+ * are discovered through EIP-6963 and listed as plain injected connectors instead: no SDK, no
+ * reload, and the session survives the round trip. Phone wallets go through WalletConnect.
+ */
+const connectors = connectorsForWallets(
+  [
+    { groupName: "Installed", wallets: [injectedWallet] },
+    { groupName: "Mobile and more", wallets: [walletConnectWallet, rainbowWallet, coinbaseWallet] },
+  ],
+  { appName: "SignalProof", appDescription: "Verifiable connectivity data, settled on Creditcoin via the Attestcoin Protocol.", appIcon: "https://signalproof.mdloglabs.org/icon-512.png", projectId },
+);
+
+export const wagmiConfig = createConfig({
   chains: [cc3Testnet, sepolia],
+  connectors,
+  multiInjectedProviderDiscovery: true,
   transports: {
     [cc3Testnet.id]: http("https://rpc.cc3-testnet.creditcoin.network"),
     [sepolia.id]: http(),
