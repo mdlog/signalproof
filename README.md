@@ -293,6 +293,16 @@ pnpm e2e:batch     # three measurements under one continuity proof
 
 ### Deploy
 
+On a server you own (this is how the public host runs, behind a Cloudflare tunnel):
+
+```bash
+pnpm build && pnpm pm2:start   # dist/ under pm2, PORT 3011 from ecosystem.config.cjs; pm2 save records it
+pm2 startup                    # once per machine: resurrect on reboot (prints the command to run as root)
+pnpm pm2:deploy                # after a git pull: rebuild and reload
+```
+
+The process is restarted if it crashes or grows past 700 MB; `SIGTERM` stops the proof worker, lets in-flight requests finish and exits, and in production a busy port is fatal rather than silently moving to the next one. Container alternative:
+
 ```bash
 docker build -t signalproof . && docker run --rm -p 3000:3000 --env-file .env signalproof
 ```

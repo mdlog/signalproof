@@ -9,7 +9,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { startProofWorker } from "../signalproof/proofWorker";
+import { startProofWorker, stopProofWorker } from "../signalproof/proofWorker";
 import { registerBuyerApi } from "../signalproof/buyerApi";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -100,12 +100,19 @@ async function startServer() {
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  // In development a busy port is a convenience problem, so the next free one is taken. In
+  // production the port is what the tunnel or reverse proxy points at: moving silently would
+  // serve nothing to the public, so a busy port is fatal and the process manager retries.
+  const port = process.env.NODE_ENV === "development" ? await findAvailablePort(preferredPort) : preferredPort;
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    console.error(`[SignalProof] cannot listen on port ${port}: ${err.code ?? err.message}`);
+    process.exit(1);
+  });
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
@@ -114,6 +121,18 @@ async function startServer() {
   // off: measurements still persist as SUBMITTED and the UI reports them as unverified, rather
   // than the app silently pretending a proof exists.
   startProofWorker();
+
+  // Graceful stop for a process manager (pm2 reload/restart, docker stop): no new worker ticks,
+  // in-flight requests finish, then exit. A tick already talking to a chain is given a few
+  // seconds; the worker reconciles against chain state on its next start either way.
+  const shutdown = (signal: string) => {
+    console.log(`[SignalProof] ${signal} received, shutting down`);
+    stopProofWorker();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 8000).unref();
+  };
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 }
 
 startServer().catch(console.error);
