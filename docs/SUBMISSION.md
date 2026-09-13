@@ -25,7 +25,7 @@ SignalProof
 
 ## Field 2 — Project Logo (Image URL — PNG, SVG, or AI; optional)
 
-The raw URL of the PWA icon in the repo (512×512 PNG; returned HTTP 200 on 2026-09-11):
+The raw URL of the PWA icon in the repo (512×512 PNG on white, the SignalProof mark — the blue S-ribbon with the Wi-Fi arc; transparent version at `client/public/logo.png`; regenerated 2026-09-13):
 
 ```
 https://raw.githubusercontent.com/mdlog/signalproof/main/client/public/icon-512.png

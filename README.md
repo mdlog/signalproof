@@ -1,3 +1,5 @@
+<p align="center"><img src="client/public/logo.png" alt="SignalProof" width="128" /></p>
+
 # SignalProof
 
 **Verifiable connectivity data for DePIN, settled on Creditcoin via the Attestcoin Protocol.**

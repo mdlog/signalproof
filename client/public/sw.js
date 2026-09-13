@@ -8,8 +8,8 @@
  * So: cache the shell so the app opens on a bad connection, and let every /api/ request fail
  * honestly rather than answering from stale data.
  */
-const SHELL = "signalproof-shell-v1";
-const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
+const SHELL = "signalproof-shell-v2";
+const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/logo.png", "/favicon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_ASSETS)).then(() => self.skipWaiting()));
