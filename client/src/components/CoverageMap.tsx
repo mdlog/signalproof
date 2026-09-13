@@ -135,7 +135,7 @@ export default function CoverageMap({ zones, isLive, onZoneClick }: Props) {
       <div ref={containerRef} className="absolute inset-0 z-0" aria-label="Coverage map" />
 
       {/* Panel chrome sits above the tiles. z-[400] clears Leaflet's own pane stack. */}
-      <div className="pointer-events-none absolute left-5 top-5 z-[400] flex items-center gap-2 rounded-md border border-white/80 bg-white/90 px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-[#426176] shadow-sm backdrop-blur">
+      <div className="pointer-events-none absolute right-5 top-5 z-[400] flex items-center gap-2 rounded-md border border-white/80 bg-white/90 px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-[#426176] shadow-sm backdrop-blur">
         {isLive ? "On-chain areas" : "Prototype areas"}
         <span className="text-[#A0AFBB]">/</span>
         {mapped.length} mapped
