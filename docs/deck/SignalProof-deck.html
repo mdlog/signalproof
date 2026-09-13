@@ -160,7 +160,7 @@
 
 <!-- 2 · Problem -->
 <section class="slide">
-  <aside class="rail"><i class="stop here"></i><i class="stop"></i><i class="stop"></i><i class="stop"></i><i class="stop"></i><span class="n">2 / 11</span></aside>
+  <aside class="rail"><i class="stop here"></i><i class="stop"></i><i class="stop"></i><i class="stop"></i><i class="stop"></i><span class="n">2 / 12</span></aside>
   <div class="content">
     <h1>Anyone can claim coverage numbers.<br><span class="quiet">Nobody can prove them.</span></h1>
     <p class="lede">Operators publish coverage maps. DePIN networks pay contributors for connectivity data. Venues and public programs buy both. None of them can audit what they are paying for.</p>
@@ -182,7 +182,7 @@
 
 <!-- 3 · How it works -->
 <section class="slide">
-  <aside class="rail"><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><i class="stop"></i><span class="n">3 / 11</span></aside>
+  <aside class="rail"><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><i class="stop"></i><span class="n">3 / 12</span></aside>
   <div class="content">
     <h1>One measurement, two chains, one decision.</h1>
     <p class="lede">Everything before the Sepolia event decides what is <b>admitted</b>. Everything after it decides what is <b>paid</b>. The two never trust each other.</p>
@@ -203,7 +203,7 @@
 
 <!-- 4 · Attestcoin depth -->
 <section class="slide dense">
-  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">4 / 11</span></aside>
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">4 / 12</span></aside>
   <div class="content">
     <h1>What the precompile proves, and the two things it does not.</h1>
     <p class="lede"><code>SignalProofSettlement</code> inherits <code>ASCBase</code> and overrides one hook. The BlockProver precompile proves inclusion in an attested Sepolia block — not that the transaction succeeded, and not which contract emitted its logs.</p>
@@ -228,7 +228,7 @@
 
 <!-- 5 · Live on testnet -->
 <section class="slide dense">
-  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">5 / 11</span></aside>
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">5 / 12</span></aside>
   <div class="content">
     <h1>Deployed, verified, and settled on-chain.</h1>
     <div class="cols wide">
@@ -260,7 +260,7 @@
 
 <!-- 6 · We attacked our own system -->
 <section class="slide dense">
-  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">6 / 11</span></aside>
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">6 / 12</span></aside>
   <div class="content">
     <h1>Four ways to get paid for nothing, found and closed before submission.</h1>
     <p class="lede">Each exploit is kept in the test suite with its assertions inverted, so reopening the hole fails a test instead of quietly working.</p>
@@ -277,7 +277,7 @@
 
 <!-- 7 · Batch economics -->
 <section class="slide">
-  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">7 / 11</span></aside>
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><i class="stop"></i><span class="n">7 / 12</span></aside>
   <div class="content">
     <h1>Batching is cheaper per entry, and it gets more expensive as it grows.</h1>
     <p class="lede">Two live runs are not enough to state a saving, so <code>BatchGasProbe.t.sol</code> holds the proof shape fixed and varies only the batch size.</p>
@@ -301,7 +301,7 @@
 
 <!-- 8 · Product -->
 <section class="slide">
-  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><span class="n">8 / 11</span></aside>
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><span class="n">8 / 12</span></aside>
   <div class="content">
     <h1>The dashboard reads the chains, not a database.</h1>
     <p class="lede">Every number below is a join of <code>MeasurementSubmitted</code> on Sepolia with <code>MeasurementVerified</code> on Creditcoin. A keyless clone shows the same thing, and a buyer can query it: <code>/v1/areas/qqguw6</code> returns the aggregates and every sample with its two transactions.</p>
@@ -314,9 +314,32 @@
   </div>
 </section>
 
-<!-- 9 · Privacy and real measurement -->
+<!-- 9 · Product surface -->
+
+<section class="slide dense">
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><span class="n">9 / 12</span></aside>
+  <div class="content">
+    <h1>Buyers pay contributors. Anyone can check the receipt.</h1>
+    <p class="lede">A buyer sends 0.05 CTC to <code>SignalProofSettlement</code> — its <code>receive()</code> credits the pool that contributors <code>claim()</code> from — signs the transaction hash, and receives a stateless key. First purchase on chain: pool 4.997 → 5.047 CTC. Metered is the service; the data is public on two chains, and the dashboard, catalog, verifier and badges stay free.</p>
+    <div class="cols" style="grid-template-columns: 1.2fr .8fr; gap: 20px; align-items: start">
+      <div>
+        <div class="shot"><img src="img/buy-access.jpg" alt="Data products: API access bought with CTC, key active until 2026-10-12" style="height:150px" /><div class="cap" style="font-size:14px"><b>Buy API access.</b> Pay → sign → key, all from the buyer's wallet. The same payment always returns the same key: nothing is stored, no replay to defend.</div></div>
+        <table style="font-size:13.5px;margin-top:12px">
+          <tr><th>Surface</th><th>What it does</th><th>Cost</th></tr>
+          <tr><td><code>/verify/&lt;hash&gt;</code></td><td>root, Sepolia tx or Creditcoin tx → both chains and the Attestcoin proof</td><td>free</td></tr>
+          <tr><td><code>/area/&lt;geohash&gt;</code></td><td>cell on the map, quality over time, every sample; CSV · JSON · brief · badge</td><td>key · badge free</td></tr>
+          <tr><td><code>/contributors</code> · <code>/ops</code></td><td>leaderboard and per-address history; relayer gas, pool runway, worker and RPC health. Auto-measure: every 10 min, each cycle wallet-signed</td><td>free</td></tr>
+        </table>
+      </div>
+      <div class="shot"><img src="img/verify.jpg" alt="Public verifier resolving a Creditcoin settlement hash to the four-step rail and the proof" style="height:330px" /><div class="cap" style="font-size:14px"><b>Public verifier.</b> Commitment, attestation, proof, settlement — each with its transaction. Never metered.</div></div>
+    </div>
+    <div class="foot"><span>Screenshots taken on 2026-09-13 from the live testnet deployment · <code>pnpm e2e:surface</code> 28/28</span><span>SignalProof</span></div>
+  </div>
+</section>
+
+<!-- 10 · Privacy and real measurement -->
 <section class="slide">
-  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><span class="n">9 / 11</span></aside>
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><i class="stop"></i><span class="n">10 / 12</span></aside>
   <div class="content">
     <h1>Coarse by construction. Measured, not asked.</h1>
     <div class="cols">
@@ -342,9 +365,9 @@
   </div>
 </section>
 
-<!-- 10 · Limits and next -->
+<!-- 11 · Limits and next -->
 <section class="slide">
-  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><span class="n">10 / 11</span></aside>
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><span class="n">11 / 12</span></aside>
   <div class="content">
     <h1>What is not done, stated before a judge finds it.</h1>
     <div class="cols">
@@ -355,13 +378,14 @@
           <li>Read direction only, Sepolia to Creditcoin. Write-ability has no public reference implementation and has not cleared third-party audit.</li>
           <li>Attested is not finalized: attestation runs 65–85 blocks ahead of Sepolia's <code>finalized</code> tag. A deep reorg could in principle invalidate an attested height.</li>
           <li>End to end is 9–13 minutes. A live real-time demo is not possible; the demo pre-warms a proof.</li>
-          <li>Anti-Sybil is a rate limit (3 per contributor per cell per 10 min), not a defence; no platform attestation; the browser client is the measurement client. The buyer API has no authentication or retention policy.</li>
+          <li>Anti-Sybil is a rate limit (3 per contributor per cell per 10 min), not a defence; no platform attestation; the browser client is the measurement client, and auto-measure needs a wallet signature per cycle by design.</li>
+          <li>Buyer keys are stateless: no per-key revocation (rotating the secret revokes all), and no retention policy yet.</li>
         </ul>
       </div>
       <div>
         <div class="kicker">Next 90 days</div>
         <ul class="plain">
-          <li>Buyer API v2: authentication, retention policy, and cell-level subscriptions on top of the read-only v1 that ships today.</li>
+          <li>Buyer API v2: per-key revocation, a retention policy, and cell-level subscriptions and webhooks on top of the metered v1 that ships today.</li>
           <li>Native measurement client with background sampling and device attestation.</li>
           <li>Sybil resistance beyond the rate limit: device attestation, stake-weighted rewards, cell-level anomaly detection.</li>
           <li>Write-ability once an audited reference implementation exists, so settlement can push results back to the source chain.</li>
@@ -372,9 +396,9 @@
   </div>
 </section>
 
-<!-- 11 · Why Creditcoin, links -->
+<!-- 12 · Why Creditcoin, links -->
 <section class="slide">
-  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><span class="n">11 / 11</span></aside>
+  <aside class="rail"><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop done"></i><i class="stop here"></i><span class="n">12 / 12</span></aside>
   <div class="content">
     <h1>Why this belongs on Creditcoin.</h1>
     <div class="cols">
@@ -388,6 +412,7 @@
         <table style="font-size:16px">
           <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Repository</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">github.com/mdlog/signalproof</span></td></tr>
           <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Demo video</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">linked from the BUIDL page on DoraHacks</span></td></tr>
+          <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">First paid access</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">creditcoin-testnet.blockscout.com/tx/0xed00…8d30</span></td></tr>
           <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Settlement contract</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">creditcoin-testnet.blockscout.com/address/0x8F14…b584</span></td></tr>
           <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Source registry</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">sepolia.etherscan.io/address/0x32c0…c236</span></td></tr>
           <tr><td style="border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)">Protocol</td><td style="border-color:rgba(255,255,255,.14)"><span class="hash">docs.attestcoin.org</span></td></tr>

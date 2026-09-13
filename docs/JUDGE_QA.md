@@ -14,10 +14,12 @@ marked **TEAM TO CONFIRM**.
 > signature, the relayer really commits to Sepolia, the worker really waits for attestation and
 > fetches a proof, the BlockProver precompile really verifies it, the contract really accrues the
 > reward, and `claim()` really moves CTC. The dashboard is a join of the two chains' logs — there is
-> no database behind it and no fixture in it. What is **not built**: the buyer API ("Create area
-> brief" is disabled and says so), anti-Sybil scoring, a native client, and on-chain verification
-> of the contributor signature. The one deliberately "fake" thing in the UI is the tampered-payload
-> demo, and even that is a real submission the gateway really rejects.
+> no database behind it and no fixture in it. The buyer API is live and metered — a key is a CTC
+> payment into the reward pool, and the first purchase is on chain — and the contributor's
+> signature is recovered by the registry contract itself. What is **not built**: anti-Sybil beyond
+> the rate limit, a native client, per-key revocation and a retention policy. The one deliberately
+> "fake" thing in the UI is the tampered-payload demo, and even that is a real submission the
+> gateway really rejects.
 
 ## Top 10 hardest questions (ranked by how much damage a bad answer does)
 
@@ -103,11 +105,12 @@ rail does not change.
 Mobile operators and their vendors already pay for drive testing and crowdsourced quality-of-
 experience data; venues (stadiums, malls, campuses) and public programmes pay for coverage audits.
 The product is an "area brief" whose every number links to a settled proof, sold per area or per
-period, with contributors paid from that revenue rather than from an emissions pool. The read-only
-buyer API v1 is live — `GET /v1/areas/{geohash}` returns the aggregates and every sample with its
-Sepolia commitment and Creditcoin settlement, `/brief` renders the forwardable brief, and the
-"Create area brief" button on the Data products screen uses it. Authentication and a retention
-policy are not built, and the screen says exactly that.
+period, with contributors paid from that revenue rather than from an emissions pool — and that is
+literally how it works today: a buyer's 0.05 CTC lands in `SignalProofSettlement`'s balance, the
+pool `claim()` pays from. `GET /v1/areas/{geohash}` returns the aggregates and every sample with
+its Sepolia commitment, Creditcoin settlement and verifier link; `/brief`, `/export.csv` and
+`/export.json` are the deliverables; `/v1/areas/{geohash}/badge.svg` is the free embed. Per-key
+revocation and a retention policy are not built, and the README says exactly that.
 
 ## The next tier (asked by the specialist judge)
 
@@ -229,11 +232,11 @@ it is that the record is checkable by a third party without trusting us.
 
 ## Feasibility and "what's next" — the honest version
 
-- **Now (built, testnet):** commit → attest → prove → settle → claim, single and batch routes, live dashboard, real browser measurement, 67 + 93 tests, seven on-chain settlements.
+- **Now (built, testnet):** commit → attest → prove → settle → claim, single and batch routes, live dashboard, real browser measurement, paid buyer access into the pool, public verifier, area/contributor/ops pages, auto-measure; 75 + 156 tests plus a 28-check live E2E; eighteen on-chain settlements from six contributors in three cells.
 - **Next 2 weeks (no new protocol surface):** carry the contributor signature in the event and recover it in the hook; relabel readiness; add a `(chainKey, height, txIndex)` ledger to the batch route; correct the stale README bullet.
-- **Next quarter:** native client with radio-layer metrics and platform attestation; anti-Sybil scoring per cell; buyer API + retention policy; a pilot with one venue or operator district.
+- **Next quarter:** native client with radio-layer metrics and platform attestation; anti-Sybil scoring per cell; per-key revocation, retention policy and cell subscriptions on the buyer API; a pilot with one venue or operator district.
 - **Not until it clears audit:** Attestcoin write-ability (Creditcoin → source chain) and mainnet. We will not claim a mainnet timeline we cannot back.
-- **What we will not say:** that this replaces drive testing today, that phones equal calibrated probes, or that 7 measurements from our own devices are a network.
+- **What we will not say:** that this replaces drive testing today, that phones equal calibrated probes, or that 18 measurements from six addresses in three cells are yet a network.
 
 ## Critic conditions — each shown satisfied or pre-answered
 

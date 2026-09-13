@@ -48,17 +48,18 @@ What is built and live on testnet:
 
 - A browser measurement client that measures rather than asks: latency as the median of seven timed round trips read from Resource Timing, throughput from a 3 MB incompressible stream (the browser's own navigator.connection.downlink under-reported a real 40.8 Mbps link as 7.5), a precision-6 geohash for the area (~1.2 km x 0.6 km — the raw coordinate never leaves the function), and the browser's network class. The wallet is an identity, not a signer: the relayer pays gas on both chains, and the only user transaction is claim().
 - A gateway that recomputes the commitment, recovers the contributor's EIP-191 signature, enforces freshness, uniqueness and a per-cell rate limit (3 per contributor per cell per 10 minutes), and never returns signature, nonce or sessionHash.
-- SourceBatchRegistry on Sepolia — relayer-gated AND verifying the contributor's signature on-chain, so the relayer cannot forge attribution — with SignalProofSettlement and SignalProofBatchSettlement on CC3 Testnet: all verified on their explorers, nine live cross-chain settlements including a 3-in-1 batch under one continuity proof, a 9.8-minute run through the signed registry, and a claim that moved 0.001 CTC from the pool to a contributor.
+- SourceBatchRegistry on Sepolia — relayer-gated AND verifying the contributor's signature on-chain, so the relayer cannot forge attribution — with SignalProofSettlement and SignalProofBatchSettlement on CC3 Testnet: all verified on their explorers, eighteen live cross-chain settlements from six contributors across three geohash cells, including a 3-in-1 batch under one continuity proof, a 9.8-minute run through the signed registry, and a claim that moved 0.001 CTC from the pool to a contributor.
 - A dashboard whose entire read model is a join of MeasurementSubmitted (Sepolia) and MeasurementVerified (Creditcoin). No database is needed to demo; a clone with RPC URLs shows real settlements. Every proof-queue row opens the live Attestcoin proof (attested height, Merkle path, continuity roots, the exact execute() call), and a pending row can be settled from the contributor's own wallet — execute() is permissionless, and the button shows it. The coverage map decodes each geohash and draws the cell, never a point; areas that are not geohashes are listed as unmapped rather than placed.
-- A read-only buyer API: GET /v1/areas, /v1/areas/{geohash} and /v1/areas/{geohash}/brief return per-cell aggregates and every sample with its Sepolia commitment and Creditcoin settlement; the "Create area brief" button renders the brief a buyer can forward.
+- A buyer API whose access is paid into the reward pool: a buyer sends 0.05 CTC to SignalProofSettlement (its receive() credits the pool contributors claim() from), signs the transaction hash, and receives a stateless HMAC key that opens /v1/areas/{geohash}, /brief, /export.csv and /export.json. The catalog, the public verifier and the badges are free — what is metered is the service, not the data, which is public on two chains. First purchase on chain: 0xed00a0b6dd4ee0b4d4760665b0bedf3cdb7279dd0b5ded0124a5925021e08d30 (pool 4.997 → 5.047 CTC).
+- A public verifier, /verify/{hash}: a measurement root, the Sepolia commitment or the Creditcoin settlement resolves to the four-step rail — commitment, attestation, proof, settlement — each with its transaction, plus the Attestcoin proof; a hash outside the scanned window is reported as not found, never as invalid. An area page per geohash (cell on the map, quality over time, every sample, CSV/JSON export, an embeddable badge), a contributors leaderboard with per-address history and claim, an operations panel (relayer balances on both chains, pool runway in settlements, worker and RPC health, attestation lag), and an auto-measure mode that runs the same measurement every 10 minutes with a wallet signature per cycle.
 
 How it fits the DePIN track sentence, clause by clause: phones are the sensor nodes; MeasurementSubmitted attested by Attestcoin and consumed on CC3 is the cross-chain data; rewards[contributor] + claim() is the incentive; SignalProofSettlement is the settlement; per-area aggregation on the map is the coordination layer.
 
 Four things we found and fixed during the build, kept as inverted exploit tests: the first registry was permissionless, so anyone could name themselves payee, obtain a genuine proof and be paid for work nobody did (now relayer-gated); the batch route let one measurement be paid on both routes (now cross-checked against the sibling contract, skipped rather than reverted so one paid entry cannot strand a batch); a co-emitted lookalike log could strand every batch containing it (foreign logs are skipped and reported); and the relayer itself could name the payee (the registry now recovers the contributor's signature on-chain — a vector signed with ethers is accepted by the contract, so the TypeScript client and Solidity agree byte for byte).
 
-What is not built, stated plainly: no native app (the browser client is the measurement client), anti-Sybil is a rate limit and not a defence, the buyer API has no authentication or retention policy, read direction only, and end-to-end latency of 9–13 minutes dominated by attestation. Nothing in the UI claims an on-chain result that does not exist.
+What is not built, stated plainly: no native app (the browser client is the measurement client; auto-measure needs a wallet signature per cycle by design), anti-Sybil is a rate limit and not a defence, buyer keys are stateless so a single key cannot be revoked and there is no retention policy, read direction only, and end-to-end latency of 9–13 minutes dominated by attestation. Nothing in the UI claims an on-chain result that does not exist.
 
-75 Foundry tests, 127 Vitest tests, pnpm smoke passes from a clean machine, and the whole thing runs in one container. MIT.
+75 Foundry tests, 156 Vitest tests, pnpm smoke passes from a clean machine, pnpm e2e:surface checks the whole product surface against the live chains (28/28), and the whole thing runs in one container. MIT.
 ```
 
 ## Field 5 — USC Integration Summary / Attestcoin Protocol Integration Summary (required)
@@ -138,10 +139,10 @@ AI attribution.
 https://raw.githubusercontent.com/mdlog/signalproof/main/docs/deck/SignalProof-deck.pdf
 ```
 
-Live (HTTP 200, 11 pages, ~0.9 MB). Source is `docs/deck/SignalProof-deck.html`, rendered with
+Live (HTTP 200, 12 pages, ~0.6 MB). Source is `docs/deck/SignalProof-deck.html`, rendered with
 headless Chrome: `google-chrome --headless=new --no-pdf-header-footer --print-to-pdf=SignalProof-deck.pdf SignalProof-deck.html`.
 Once the demo video URL exists, replace "linked from the BUIDL page on DoraHacks" on the last slide
-with it and re-render. The 11 slides, in order:
+with it and re-render. The 12 slides, in order:
 
 1. **Title** — one-liner, the pipeline as five stations, event and track.
 2. **Anyone can claim coverage numbers. Nobody can prove them.** — who claims, why it is unverifiable, what SignalProof changes.
@@ -151,9 +152,10 @@ with it and re-render. The 11 slides, in order:
 6. **Four ways to get paid for nothing, found and closed before submission** — permissionless registry, double settlement, poisoned batch, relayer-named payee; each kept as an inverted exploit test.
 7. **Batching is cheaper per entry, and it gets more expensive as it grows** — the gas probe table, why the cap is 50.
 8. **The dashboard reads the chains, not a database** — three live screenshots.
-9. **Coarse by construction. Measured, not asked** — geohash-6, wallet as identity, measured vs `navigator.connection`.
-10. **What is not done, stated before a judge finds it** — known limitations and the next 90 days.
-11. **Why this belongs on Creditcoin** — the buyer, the proof as product, links.
+9. **Buyers pay contributors. Anyone can check the receipt** — paid access into the pool, the verifier, area page, contributors, ops, auto-measure.
+10. **Coarse by construction. Measured, not asked** — geohash-6, wallet as identity, measured vs `navigator.connection`.
+11. **What is not done, stated before a judge finds it** — known limitations and the next 90 days.
+12. **Why this belongs on Creditcoin** — the buyer, the proof as product, links (including the first paid-access transaction).
 
 ## Field 8 — Prototype Demo Video URL (required)
 
@@ -202,7 +204,7 @@ Minimum team size is 1; delete unused columns.
 | Deployed on a testnet | ✓ done | Sepolia `0x32c0…c236` (signed registry; retired `0x15F3…59Dc` still read); CC3 Testnet `0x8F14…b584`, `0x3B90…8C85` — all verified on explorers |
 | Attestcoin Protocol as a core feature | ✓ done | Settlement cannot happen without the proof; there is no non-Attestcoin path to a reward |
 | GitHub Repository URL (must include a README) — form field 6 | ✓ done — https://github.com/mdlog/signalproof | Field 6 above |
-| Project Deck or Whitepaper (PDF URL) — form field 7 | ✓ done — raw GitHub PDF, 11 slides | Field 7 above |
+| Project Deck or Whitepaper (PDF URL) — form field 7 | ✓ done — raw GitHub PDF, 12 slides (re-rendered 2026-09-13) | Field 7 above |
 | Prototype Demo Video URL — form field 8 | ☐ **pending** — record from `docs/VIDEO_SCRIPT.md` | Field 8 above |
 | USC / Attestcoin Integration Summary — form field 5 | ✓ written | Field 5 above |
 | Project Name, Sector, Description — form fields 1, 3, 4 | ✓ written | Fields 1, 3, 4 above |
