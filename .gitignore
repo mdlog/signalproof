@@ -123,3 +123,6 @@ contracts/broadcast/
 
 # Manus scaffold debug output
 .manus-logs/
+
+# Local demo-video production (Playwright + TTS pipeline, wallet key, media) — never in the repo
+/video/
