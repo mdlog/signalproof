@@ -104,16 +104,25 @@ export default function CoverageMap({ zones, isLive, onZoneClick, emptyMessage =
       }
 
       const size = geohashCellSize(zone.code);
+      // The pin is the SignalProof mark on a white disc; the ring carries the quality band's colour,
+      // and the score itself lives in the hover tooltip and the popup, so nothing is lost.
       const marker = L.marker([zone.lat, zone.lon], {
         icon: L.divIcon({
           className: "",
-          html: `<div style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9999px;border:4px solid #fff;background:${zone.color};color:#fff;font:700 11px/1 'IBM Plex Mono',monospace;box-shadow:0 4px 14px rgba(16,42,67,.28)">${zone.quality}</div>`,
-          iconSize: [34, 34],
-          iconAnchor: [17, 17],
+          html: `<div style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:9999px;border:3px solid ${zone.color};background:#fff;box-shadow:0 4px 14px rgba(16,42,67,.28)"><img src="/logo.png" alt="" draggable="false" style="width:28px;height:28px;display:block" /></div>`,
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
+          popupAnchor: [0, -20],
+          tooltipAnchor: [0, -22],
         }),
         keyboard: true,
-        title: zone.name,
+        title: `${zone.name} · quality ${zone.quality}`,
       }).addTo(layer);
+
+      marker.bindTooltip(
+        `<span style="font:600 11px/1.2 'IBM Plex Mono',monospace;color:#102A43">${zone.code} · <span style="color:${zone.color}">quality ${zone.quality}</span></span>`,
+        { direction: "top", opacity: 1 },
+      );
 
       marker.bindPopup(
         `<div style="font:600 13px/1.4 'Source Sans 3',sans-serif;color:#102A43">
