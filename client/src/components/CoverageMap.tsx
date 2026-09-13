@@ -28,6 +28,8 @@ type Props = {
   zones: CoverageZone[];
   isLive: boolean;
   onZoneClick: (name: string) => void;
+  /** Shown instead of the default empty state when a filter, not the chain, left the map empty. */
+  emptyMessage?: string | null;
 };
 
 /** Zones split by whether their areaHash carries a decodable location. */
@@ -42,7 +44,7 @@ function partition(zones: CoverageZone[]) {
   return { mapped, unmapped };
 }
 
-export default function CoverageMap({ zones, isLive, onZoneClick }: Props) {
+export default function CoverageMap({ zones, isLive, onZoneClick, emptyMessage = null }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
@@ -152,9 +154,11 @@ export default function CoverageMap({ zones, isLive, onZoneClick }: Props) {
       {mapped.length === 0 && (
         <div className="absolute inset-0 z-[400] flex items-center justify-center bg-white/85 backdrop-blur-sm">
           <div className="max-w-sm px-6 text-center">
-            <div className="font-display text-sm font-bold text-[#102A43]">No mappable areas yet</div>
+            <div className="font-display text-sm font-bold text-[#102A43]">{emptyMessage ? "No area matches" : "No mappable areas yet"}</div>
             <p className="mt-2 text-xs leading-relaxed text-[#73879A]">
-              {unmapped.length > 0
+              {emptyMessage
+                ? emptyMessage
+                : unmapped.length > 0
                 ? `${unmapped.length} area${unmapped.length === 1 ? " uses" : "s use"} a non-geohash identifier (${unmapped
                     .map((z) => z.code)
                     .slice(0, 3)
