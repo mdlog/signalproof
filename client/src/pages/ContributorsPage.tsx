@@ -3,10 +3,13 @@
  * the console renders. A single team's addresses look like a single team here — the page does
  * not pretend otherwise.
  */
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Users } from "lucide-react";
 import PageFrame from "@/components/PageFrame";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { paginate } from "@shared/queue";
 import { trpc } from "@/lib/trpc";
 import { useWalletContext } from "@/contexts/WalletContext";
 
@@ -30,6 +33,14 @@ export default function ContributorsPage() {
   // looks for themselves, and a 42-character address is not how anyone recognises their own.
   const wallet = useWalletContext();
   const me = wallet.status === "connected" && wallet.address ? wallet.address.toLowerCase() : null;
+
+  /** Ten addresses per page; the page resets when the list changes size. */
+  const LEADERBOARD_PAGE_SIZE = 10;
+  const [page, setPage] = useState(0);
+  useEffect(() => {
+    setPage(0);
+  }, [rows.length]);
+  const pageData = useMemo(() => paginate(rows, page, LEADERBOARD_PAGE_SIZE), [rows, page]);
   const totalSettled = rows.reduce((n, r) => n + r.settled, 0);
   const cells = new Set(rows.flatMap((r) => r.areas)).size;
 
@@ -50,7 +61,7 @@ export default function ContributorsPage() {
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead><tr className="border-b border-[#EDF2F5] text-[10px] uppercase tracking-[0.13em] text-[#A0AFBB]"><th className="py-3 font-medium">#</th><th className="py-3 font-medium">Address</th><th className="py-3 font-medium">Settled</th><th className="py-3 font-medium">Awaiting</th><th className="py-3 font-medium">Cells</th><th className="py-3 font-medium">Accrued</th><th className="py-3 text-right font-medium">Last seen</th></tr></thead>
               <tbody>
-                {rows.map((r) => {
+                {pageData.items.map((r) => {
                   const mine = me !== null && r.address.toLowerCase() === me;
                   return (
                   <tr key={r.address} className={`border-b border-[#F0F3F5] last:border-0 ${mine ? "bg-[#F0FAF8]" : ""}`}>
@@ -73,6 +84,15 @@ export default function ContributorsPage() {
                 })}
               </tbody>
             </table>
+          )}
+          {pageData.pageCount > 1 && (
+            <div className="flex items-center justify-between border-t border-[#EDF2F5] pt-3 text-xs text-[#73879A]">
+              <span>Addresses {pageData.from}–{pageData.to} of {pageData.total} · page {pageData.page + 1} of {pageData.pageCount}</span>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={pageData.page === 0} className="h-8 rounded-lg border-[#DCE5EB]">Previous</Button>
+                <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.min(pageData.pageCount - 1, p + 1))} disabled={pageData.page >= pageData.pageCount - 1} className="h-8 rounded-lg border-[#DCE5EB]">Next</Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
