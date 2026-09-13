@@ -146,7 +146,7 @@ describe("requireAccess middleware", () => {
     let status = 200;
     let body: unknown = null;
     let nexted = false;
-    const req = { get: () => authorization } as never;
+    const req = { get: () => authorization, query: {} } as never;
     const res = {
       status(code: number) { status = code; return this; },
       json(v: unknown) { body = v; return this; },
@@ -176,5 +176,24 @@ describe("requireAccess middleware", () => {
   it("passes a valid key", async () => {
     const key = issueKey(TX, Math.floor(Date.now() / 1000) + 3600, SECRET);
     expect((await call(`Bearer ${key}`, true)).nexted).toBe(true);
+  });
+  it("accepts the same key as ?key= for a link a browser opens", async () => {
+    const { requireAccess } = await import("./access");
+    const { ENV } = await import("../_core/env");
+    const saved = { s: ENV.buyerAccessSecret, a: ENV.settlementContractAddress };
+    ENV.buyerAccessSecret = SECRET;
+    ENV.settlementContractAddress = "0x8F14B2cC1b807203d332DE6E3DA6274176FDb584";
+    let nexted = false;
+    let cache = "";
+    const key = issueKey(TX, Math.floor(Date.now() / 1000) + 3600, SECRET);
+    const req = { get: () => undefined, query: { key } } as never;
+    const res = { status() { return this; }, json() { return this; }, set(h: string, v: string) { if (h === "Cache-Control") cache = v; return this; } } as never;
+    try {
+      requireAccess()(req, res, () => { nexted = true; });
+    } finally {
+      ENV.buyerAccessSecret = saved.s; ENV.settlementContractAddress = saved.a;
+    }
+    expect(nexted).toBe(true);
+    expect(cache).toContain("private");
   });
 });

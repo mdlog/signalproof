@@ -156,7 +156,7 @@ export function accessRequiredBody(cfg: AccessConfig, detail: string) {
     howTo:
       `Send ${cfg.priceCtc} CTC to ${cfg.settlement} on Creditcoin CC3 Testnet (it funds the contributor reward pool), ` +
       `sign "SignalProof API access\\nTransaction: <txHash>\\nAddress: <yourAddress>" with the paying wallet, ` +
-      `then POST /v1/access/redeem { txHash, address, signature } and pass the key as Authorization: Bearer <key>.`,
+      `then POST /v1/access/redeem { txHash, address, signature } and pass the key as Authorization: Bearer <key> (or ?key=<key> on a link).`,
   };
 }
 
@@ -168,8 +168,13 @@ export function requireAccess(): RequestHandler {
       next();
       return;
     }
+    // `Authorization: Bearer` for programs; `?key=` for a link a browser opens, which cannot carry
+    // a header. Both are the same key. Responses behind the gate are marked private so a shared
+    // cache never serves one buyer's answer to another.
     const header = req.get("authorization") ?? "";
-    const raw = header.replace(/^Bearer\s+/i, "").trim();
+    const fromQuery = typeof req.query?.key === "string" ? req.query.key : "";
+    const raw = (header.replace(/^Bearer\s+/i, "").trim() || fromQuery).trim();
+    res.set("Cache-Control", "private, max-age=15");
     if (!raw) {
       res.status(401).json(accessRequiredBody(cfg, "No API key. This endpoint is metered; the dashboard at / stays free."));
       return;

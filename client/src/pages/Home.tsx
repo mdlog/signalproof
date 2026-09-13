@@ -47,7 +47,7 @@ import AppShell, { ROUTE_NAV, sourceDocs, type ShellNavItem } from "@/components
 import { TrustBoundary } from "@/components/TrustBoundary";
 import BuyAccess from "@/components/BuyAccess";
 import AutoMeasure from "@/components/AutoMeasure";
-import { accessHeaders, describeAccessRefusal } from "@/lib/access";
+import { accessHeaders, describeAccessRefusal, withAccessKey } from "@/lib/access";
 import { qualityScore } from "@shared/quality";
 import { QUEUE_PAGE_SIZE, filterQueue, paginate, type QueueFilter } from "@shared/queue";
 
@@ -494,7 +494,7 @@ export default function Home() {
             {brief && !brief.loading && !brief.error && <pre className="whitespace-pre-wrap break-words font-mono text-[11px] leading-[1.7] text-[#426176]">{brief.text}</pre>}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE5EB] px-6 py-4">
-            <a href={`/v1/areas/${brief?.area ?? ""}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-[#147A70]">JSON with provenance <ExternalLink className="h-3.5 w-3.5" /></a>
+            <a href={withAccessKey(`/v1/areas/${brief?.area ?? ""}`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-[#147A70]">JSON with provenance <ExternalLink className="h-3.5 w-3.5" /></a>
             <Button onClick={() => { if (brief?.text) void copyText(brief.text); }} disabled={!brief?.text} className="gap-2 rounded-xl bg-[#F06A59] text-white hover:bg-[#dc5b4b]">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copy brief</Button>
           </div>
         </DialogContent>

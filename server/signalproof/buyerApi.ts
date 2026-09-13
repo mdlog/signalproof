@@ -51,6 +51,7 @@ function registerAccessRoutes(app: Express): void {
       whatItFunds: "The payment lands in SignalProofSettlement's reward pool — the balance contributors claim() from.",
       signMessage: "SignalProof API access\nTransaction: <txHash>\nAddress: <address>",
       redeem: "POST /v1/access/redeem { txHash, address, signature }",
+      use: "Authorization: Bearer <key>, or ?key=<key> on a link a browser opens",
       gated: ["/v1/areas/:area", "/v1/areas/:area/brief", "/v1/areas/:area/export.csv", "/v1/areas/:area/export.json"],
       free: ["/v1/areas", "/v1/verify/:hash", "/v1/areas/:area/badge.svg"],
     });
@@ -156,7 +157,6 @@ export function registerBuyerApi(app: Express): void {
       res.status(404).json({ error: "AREA_NOT_FOUND", area });
       return;
     }
-    res.set("Cache-Control", "public, max-age=15");
     res.json({ generatedAt: new Date().toISOString(), ...view });
   });
 
@@ -208,7 +208,7 @@ export function registerBuyerApi(app: Express): void {
       res.status(404).json({ error: "AREA_NOT_FOUND", area });
       return;
     }
-    res.set({ "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "public, max-age=15" });
+    res.set({ "Content-Type": "text/markdown; charset=utf-8" });
     res.send(buildAreaBrief(view, new Date()));
   });
 }

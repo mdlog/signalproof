@@ -54,6 +54,13 @@ export function accessHeaders(): Record<string, string> {
   return access ? { Authorization: `Bearer ${access.key}` } : {};
 }
 
+/** A metered URL a browser can open directly: the stored key travels as `?key=`, since a link cannot send a header. */
+export function withAccessKey(path: string): string {
+  const access = getStoredAccess();
+  if (!access) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}key=${encodeURIComponent(access.key)}`;
+}
+
 export async function fetchAccessTerms(): Promise<AccessTerms> {
   const res = await fetch("/v1/access", { cache: "no-store" });
   if (!res.ok) throw new Error(`The access endpoint answered ${res.status}.`);

@@ -325,6 +325,9 @@ sender — otherwise anyone reading a `Funded` event on Blockscout could redeem 
 payment. The key is an HMAC over `txHash|expiry` with `BUYER_ACCESS_SECRET`; nothing is stored, so
 the same payment always yields the same key ("I lost my key" is "sign again") and there is no
 replay to defend. The cost is that a single key cannot be revoked — only the secret can be rotated.
+The key travels as `Authorization: Bearer <key>` from a program, or as `?key=<key>` on a link a
+browser opens (the dashboard's own JSON links do this); either way the response is `Cache-Control:
+private`.
 Without a secret configured the gate is open and the purchase card hides itself, so a keyless clone
 behaves exactly as before.
 
